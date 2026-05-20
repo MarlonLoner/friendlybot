@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #f5f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: #f5f7fb;
+  color: #13213c;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: #f6e4b8;
+  color: #071a3d;
+}
+
+@layer components {
+  .input {
+    @apply h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-eclipse-ink outline-none transition focus:border-eclipse-gold focus:ring-2 focus:ring-eclipse-gold/30;
+  }
+}
