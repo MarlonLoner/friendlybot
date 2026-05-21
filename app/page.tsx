@@ -133,11 +133,19 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="rounded-lg bg-eclipse-blue p-6 text-white shadow-soft sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-eclipse-gold">Coming soon</p>
-          <h2 className="mt-2 text-3xl font-bold">Find Lodges by Eclipse is coming soon</h2>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-eclipse-gold">Find Lodges by Eclipse</p>
+          <h2 className="mt-2 text-3xl font-bold">Browse trusted lodge listings and connect directly with owners through WhatsApp.</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75">
-            The group finder foundation is being built so lodge listings, subscriptions, payments, Paynow integration and image-rich marketplace tools can plug in later.
+            A paid-listing-ready travel layer for lodges, guest houses, cottages and getaways across Zimbabwe.
           </p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link href="/lodges" className="inline-flex items-center justify-center rounded-md bg-eclipse-gold px-5 py-3 text-sm font-semibold text-eclipse-blue transition hover:bg-[#e8b957]">
+              Browse Lodges
+            </Link>
+            <Link href="/lodges/list-your-lodge" className="inline-flex items-center justify-center rounded-md border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              List Your Lodge
+            </Link>
+          </div>
         </div>
       </section>
     </main>

@@ -13,6 +13,7 @@ The next value layer is the FriendlyBot Demand Engine: failed searches and expli
 - PostgreSQL
 - API routes for search, admin CRUD, analytics, and click tracking
 - Group request capture and demand analytics
+- Find Lodges by Eclipse public lodge listings and admin approval workflow
 - Simple admin access-code placeholder
 
 ## Getting Started
@@ -66,6 +67,12 @@ Open `http://localhost:3000`.
 - `/admin/groups` protected group management
 - `/admin/searches` protected search analytics
 - `/admin/requests` protected group request inbox and create-from-request workflow
+- `/lodges` public lodge discovery
+- `/lodges/[slug]` public lodge detail page
+- `/lodges/list-your-lodge` lodge owner submission page
+- `/admin/lodges` protected lodge management
+- `/admin/lodges/new` manual lodge creation
+- `/admin/lodges/[id]/edit` lodge editing
 
 ## Admin Access
 
@@ -86,6 +93,28 @@ Admin users can then:
 
 Demand Signals combine no-result searches and group requests. Each signal suggests whether Sandra should create a new group, add more groups, or review an existing category.
 
+## Find Lodges by Eclipse
+
+Find Lodges by Eclipse adds a paid-listing-ready lodge discovery layer inside the FriendlyBot ecosystem. Public users can browse approved lodges, filter by location, price, lodge type and facilities, view listing details, and contact lodge owners directly through WhatsApp.
+
+Lodge owner submission flow:
+
+1. Owner visits `/lodges/list-your-lodge`
+2. Owner submits lodge details, facilities, room types and image URLs
+3. Listing is saved as `PENDING`
+4. Eclipse reviews it in `/admin/lodges`
+5. Admin approves, rejects, archives, edits, or marks it featured
+6. Approved `ACTIVE` lodges appear on `/lodges`
+
+Admin workflow:
+
+1. Review pending lodge submissions in `/admin/lodges`
+2. Edit listing quality, facilities, images and subscription fields
+3. Approve listings for public display
+4. Track lodge views and WhatsApp booking clicks from the dashboard
+
+Paynow/payment integration planned for next phase.
+
 ## Scripts
 
 ```bash
@@ -105,4 +134,4 @@ The project is ready for Vercel:
 3. Add `DATABASE_URL` and `ADMIN_ACCESS_CODE` in Vercel environment variables.
 4. Run Prisma migrations against your production database.
 
-The current code intentionally includes only a “Find Lodges by Eclipse is coming soon” section. The data structure and layout leave room for lodge listings, payments, subscriptions, image galleries, and Paynow integration later.
+The lodge marketplace is listing-ready, but payments are intentionally not implemented yet. The data structure includes subscription status and expiry fields for the next phase.

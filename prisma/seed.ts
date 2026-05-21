@@ -1,4 +1,4 @@
-import { GroupRequestStatus, GroupStatus, PrismaClient } from "@prisma/client";
+import { GroupRequestStatus, GroupStatus, LodgeStatus, PrismaClient, SubscriptionStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -211,6 +211,94 @@ const groupRequests = [
   }
 ];
 
+const lodges = [
+  {
+    name: "Kariba Sunset Lodge",
+    slug: "kariba-sunset-lodge",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263771234567",
+    location: "Kariba",
+    address: "Lake Drive, Kariba",
+    googleMapsUrl: "https://maps.google.com/?q=Kariba",
+    priceFrom: 85,
+    lodgeType: "Lodge",
+    roomTypes: "Standard rooms, family rooms, lake-view chalets",
+    facilities: ["WiFi", "Swimming Pool", "Parking", "Restaurant", "Bar", "Family Friendly", "Air Conditioning"],
+    description: "A warm lake-facing lodge for family holidays, fishing weekends and relaxed Kariba getaways.",
+    status: LodgeStatus.ACTIVE,
+    isFeatured: true,
+    subscriptionStatus: SubscriptionStatus.TRIAL,
+    images: [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+    ]
+  },
+  {
+    name: "Victoria Falls Family Guest House",
+    slug: "victoria-falls-family-guest-house",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263772345678",
+    location: "Victoria Falls",
+    priceFrom: 65,
+    lodgeType: "Guest House",
+    roomTypes: "Double rooms, twin rooms, family suite",
+    facilities: ["WiFi", "Parking", "Restaurant", "Family Friendly", "Hot Water", "Security"],
+    description: "A comfortable guest house close to Victoria Falls activities, ideal for families and small groups.",
+    status: LodgeStatus.ACTIVE,
+    isFeatured: true,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
+    images: ["https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80"]
+  },
+  {
+    name: "Nyanga Mist Cottages",
+    slug: "nyanga-mist-cottages",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263773456789",
+    location: "Nyanga",
+    priceFrom: 70,
+    lodgeType: "Cottage",
+    roomTypes: "Self-catering cottages and mountain-view cabins",
+    facilities: ["Parking", "Self Catering", "Family Friendly", "Hot Water", "Backup Power", "Security"],
+    description: "Quiet mountain cottages for weekend retreats, family stays and misty Nyanga escapes.",
+    status: LodgeStatus.ACTIVE,
+    isFeatured: false,
+    subscriptionStatus: SubscriptionStatus.TRIAL,
+    images: ["https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=1200&q=80"]
+  },
+  {
+    name: "Harare Executive Guest House",
+    slug: "harare-executive-guest-house",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263774567890",
+    location: "Harare",
+    priceFrom: 55,
+    lodgeType: "Guest House",
+    roomTypes: "Executive rooms, conference package rooms",
+    facilities: ["WiFi", "Parking", "Restaurant", "Conference Room", "Air Conditioning", "Backup Power", "Security"],
+    description: "Business-friendly guest house with convenient city access and practical meeting facilities.",
+    status: LodgeStatus.ACTIVE,
+    isFeatured: false,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
+    images: ["https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80"]
+  },
+  {
+    name: "Lake Chivero Weekend Lodge",
+    slug: "lake-chivero-weekend-lodge",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263775678901",
+    location: "Lake Chivero",
+    priceFrom: 60,
+    lodgeType: "Lodge",
+    roomTypes: "Weekend chalets and group rooms",
+    facilities: ["Parking", "Restaurant", "Bar", "Self Catering", "Family Friendly", "Security"],
+    description: "A simple weekend lodge for quick escapes, group braais and lakeside relaxation near Harare.",
+    status: LodgeStatus.ACTIVE,
+    isFeatured: false,
+    subscriptionStatus: SubscriptionStatus.NONE,
+    images: ["https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=80"]
+  }
+];
+
 async function main() {
   const createdCategories = new Map<string, string>();
 
@@ -275,6 +363,52 @@ async function main() {
         status: request.status
       },
       create: request
+    });
+  }
+
+  for (const lodge of lodges) {
+    await prisma.lodge.upsert({
+      where: { slug: lodge.slug },
+      update: {
+        name: lodge.name,
+        ownerName: lodge.ownerName,
+        whatsappNumber: lodge.whatsappNumber,
+        location: lodge.location,
+        address: "address" in lodge ? lodge.address : null,
+        googleMapsUrl: "googleMapsUrl" in lodge ? lodge.googleMapsUrl : null,
+        priceFrom: lodge.priceFrom,
+        lodgeType: lodge.lodgeType,
+        roomTypes: lodge.roomTypes,
+        facilities: lodge.facilities,
+        description: lodge.description,
+        status: lodge.status,
+        isFeatured: lodge.isFeatured,
+        subscriptionStatus: lodge.subscriptionStatus
+      },
+      create: {
+        name: lodge.name,
+        slug: lodge.slug,
+        ownerName: lodge.ownerName,
+        whatsappNumber: lodge.whatsappNumber,
+        location: lodge.location,
+        address: "address" in lodge ? lodge.address : null,
+        googleMapsUrl: "googleMapsUrl" in lodge ? lodge.googleMapsUrl : null,
+        priceFrom: lodge.priceFrom,
+        lodgeType: lodge.lodgeType,
+        roomTypes: lodge.roomTypes,
+        facilities: lodge.facilities,
+        description: lodge.description,
+        status: lodge.status,
+        isFeatured: lodge.isFeatured,
+        subscriptionStatus: lodge.subscriptionStatus,
+        images: {
+          create: lodge.images.map((imageUrl, index) => ({
+            imageUrl,
+            altText: lodge.name,
+            sortOrder: index
+          }))
+        }
+      }
     });
   }
 }

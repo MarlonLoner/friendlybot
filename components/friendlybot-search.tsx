@@ -3,8 +3,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bot, CheckCircle2, Loader2, Search, Send, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { GroupCard } from "@/components/group-card";
 import type { CategoryRecord, WhatsAppGroupRecord } from "@/lib/types";
+import { isLodgeRelatedQuery } from "@/lib/search";
 
 type SearchResponse = {
   results: WhatsAppGroupRecord[];
@@ -174,6 +176,16 @@ export function FriendlyBotSearch() {
 
         {!isLoading && hasSearched ? (
           <div>
+            {isLodgeRelatedQuery(requestLabel) ? (
+              <div className="mb-5 rounded-lg border border-eclipse-gold/40 bg-white p-5 shadow-soft">
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-eclipse-gold">Find Lodges by Eclipse</p>
+                <h3 className="mt-2 text-xl font-bold text-eclipse-ink">Looking for accommodation?</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Browse lodge listings and connect directly with owners through WhatsApp.</p>
+                <Link href="/lodges" className="mt-4 inline-flex rounded-md bg-eclipse-gold px-4 py-2 text-sm font-semibold text-eclipse-blue">
+                  Browse Lodges
+                </Link>
+              </div>
+            ) : null}
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.14em] text-eclipse-gold">Search results</p>

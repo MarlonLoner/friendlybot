@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { fallbackCategories, fallbackGroupRequests, fallbackGroups } from "@/lib/fallback-data";
+import { fallbackLodges } from "@/lib/fallback-lodges";
 import { hasDatabaseUrl, prisma } from "@/lib/prisma";
 import { detectCategory, detectLocation, searchGroups, slugify } from "@/lib/search";
 import type {
@@ -8,6 +9,10 @@ import type {
   GroupRequestRecord,
   GroupRequestStatus,
   GroupStatus,
+  LodgeFilters,
+  LodgeRecord,
+  LodgeStatus,
+  SubscriptionStatus,
   SearchFilters,
   SearchLogRecord,
   TopItem,
@@ -29,6 +34,14 @@ const requestInclude = {
     include: groupInclude
   }
 } satisfies Prisma.GroupRequestInclude;
+
+const lodgeInclude = {
+  images: {
+    orderBy: {
+      sortOrder: "asc"
+    }
+  }
+} satisfies Prisma.LodgeInclude;
 
 function databaseReady() {
   return hasDatabaseUrl();
@@ -213,7 +226,14 @@ export async function getAdminStats() {
         newRequests,
         reviewedRequests,
         createdRequests,
-        ignoredRequests
+        ignoredRequests,
+        totalLodges,
+        pendingLodges,
+        activeLodges,
+        featuredLodges,
+        expiredSubscriptions,
+        lodgeWhatsappClicks,
+        mostViewedLodges
       ] = await Promise.all([
         prisma.whatsAppGroup.count({ where: { status: { not: "ARCHIVED" } } }),
         prisma.category.count(),
@@ -225,7 +245,14 @@ export async function getAdminStats() {
         prisma.groupRequest.count({ where: { status: "NEW" } }),
         prisma.groupRequest.count({ where: { status: "REVIEWED" } }),
         prisma.groupRequest.count({ where: { status: "CREATED" } }),
-        prisma.groupRequest.count({ where: { status: "IGNORED" } })
+        prisma.groupRequest.count({ where: { status: "IGNORED" } }),
+        prisma.lodge.count({ where: { status: { not: "ARCHIVED" } } }),
+        prisma.lodge.count({ where: { status: "PENDING" } }),
+        prisma.lodge.count({ where: { status: "ACTIVE" } }),
+        prisma.lodge.count({ where: { status: "ACTIVE", isFeatured: true } }),
+        prisma.lodge.count({ where: { subscriptionStatus: "EXPIRED" } }),
+        prisma.lodge.aggregate({ _sum: { whatsappClicks: true } }),
+        prisma.lodge.findMany({ where: { status: "ACTIVE" }, include: lodgeInclude, orderBy: { views: "desc" }, take: 5 })
       ]);
 
       return {
@@ -239,7 +266,14 @@ export async function getAdminStats() {
         newRequests,
         reviewedRequests,
         createdRequests,
-        ignoredRequests
+        ignoredRequests,
+        totalLodges,
+        pendingLodges,
+        activeLodges,
+        featuredLodges,
+        expiredSubscriptions,
+        lodgeWhatsappClicks: lodgeWhatsappClicks._sum.whatsappClicks ?? 0,
+        mostViewedLodges
       };
     },
     {
@@ -253,7 +287,14 @@ export async function getAdminStats() {
       newRequests: fallbackGroupRequests.filter((request) => request.status === "NEW").length,
       reviewedRequests: fallbackGroupRequests.filter((request) => request.status === "REVIEWED").length,
       createdRequests: fallbackGroupRequests.filter((request) => request.status === "CREATED").length,
-      ignoredRequests: fallbackGroupRequests.filter((request) => request.status === "IGNORED").length
+      ignoredRequests: fallbackGroupRequests.filter((request) => request.status === "IGNORED").length,
+      totalLodges: fallbackLodges.filter((lodge) => lodge.status !== "ARCHIVED").length,
+      pendingLodges: fallbackLodges.filter((lodge) => lodge.status === "PENDING").length,
+      activeLodges: fallbackLodges.filter((lodge) => lodge.status === "ACTIVE").length,
+      featuredLodges: fallbackLodges.filter((lodge) => lodge.status === "ACTIVE" && lodge.isFeatured).length,
+      expiredSubscriptions: fallbackLodges.filter((lodge) => lodge.subscriptionStatus === "EXPIRED").length,
+      lodgeWhatsappClicks: fallbackLodges.reduce((total, lodge) => total + lodge.whatsappClicks, 0),
+      mostViewedLodges: fallbackLodges.filter((lodge) => lodge.status === "ACTIVE").sort((a, b) => b.views - a.views).slice(0, 5)
     }
   );
 }
@@ -514,6 +555,151 @@ export async function createGroupFromRequest(
 
     return { group, request };
   });
+}
+
+function filterLodges(lodges: LodgeRecord[], filters: LodgeFilters = {}) {
+  const query = filters.query?.trim().toLowerCase() ?? "";
+  const location = filters.location?.trim().toLowerCase() ?? "";
+  const lodgeType = filters.lodgeType?.trim().toLowerCase() ?? "";
+  const facilities = filters.facilities ?? [];
+  const status = filters.status && filters.status !== "ALL" ? filters.status : null;
+
+  return lodges
+    .filter((lodge) => filters.includeArchived || lodge.status !== "ARCHIVED")
+    .filter((lodge) => (status ? lodge.status === status : filters.includeArchived ? true : lodge.status === "ACTIVE"))
+    .filter((lodge) => {
+      if (query && ![lodge.name, lodge.location, lodge.description, lodge.lodgeType].join(" ").toLowerCase().includes(query)) return false;
+      if (location && !lodge.location.toLowerCase().includes(location)) return false;
+      if (lodgeType && lodge.lodgeType.toLowerCase() !== lodgeType) return false;
+      if (filters.priceRange) {
+        const [min, max] = filters.priceRange.split("-").map(Number);
+        if (!Number.isNaN(min) && lodge.priceFrom < min) return false;
+        if (!Number.isNaN(max) && lodge.priceFrom > max) return false;
+      }
+      if (facilities.length > 0 && !facilities.every((facility) => lodge.facilities.includes(facility))) return false;
+      return true;
+    })
+    .sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured) || a.priceFrom - b.priceFrom || a.name.localeCompare(b.name));
+}
+
+export async function getLodges(filters: LodgeFilters = {}): Promise<LodgeRecord[]> {
+  return withFallback<LodgeRecord[]>(
+    async () => {
+      const where: Prisma.LodgeWhereInput = {};
+      if (filters.status && filters.status !== "ALL") where.status = filters.status;
+      else if (!filters.includeArchived) where.status = "ACTIVE";
+      if (filters.location) where.location = { contains: filters.location, mode: "insensitive" };
+      if (filters.lodgeType) where.lodgeType = { equals: filters.lodgeType, mode: "insensitive" };
+      if (filters.query) {
+        where.OR = [
+          { name: { contains: filters.query, mode: "insensitive" } },
+          { location: { contains: filters.query, mode: "insensitive" } },
+          { description: { contains: filters.query, mode: "insensitive" } }
+        ];
+      }
+      const lodges = await prisma.lodge.findMany({
+        where,
+        include: lodgeInclude,
+        orderBy: [{ isFeatured: "desc" }, { priceFrom: "asc" }, { name: "asc" }]
+      });
+      return filterLodges(lodges, filters);
+    },
+    filterLodges(fallbackLodges, filters)
+  );
+}
+
+export async function getLodgeBySlug(slug: string) {
+  return withFallback<LodgeRecord | null>(
+    async () => prisma.lodge.findFirst({ where: { slug, status: "ACTIVE" }, include: lodgeInclude }),
+    fallbackLodges.find((lodge) => lodge.slug === slug && lodge.status === "ACTIVE") ?? null
+  );
+}
+
+export async function getLodgeById(id: string) {
+  if (!databaseReady()) return fallbackLodges.find((lodge) => lodge.id === id) ?? null;
+  return prisma.lodge.findUnique({ where: { id }, include: lodgeInclude });
+}
+
+type LodgeInput = {
+  name: string;
+  ownerName?: string | null;
+  whatsappNumber: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+  location: string;
+  address?: string | null;
+  googleMapsUrl?: string | null;
+  priceFrom: number;
+  lodgeType: string;
+  roomTypes?: string | null;
+  facilities: string[];
+  description: string;
+  status: LodgeStatus;
+  isFeatured: boolean;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionExpiresAt?: string | null;
+  notes?: string | null;
+  images: { imageUrl: string; altText?: string | null; sortOrder?: number }[];
+};
+
+export async function createLodge(input: LodgeInput) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to save lodge listings.");
+  const slugBase = slugify(input.name);
+  const existing = await prisma.lodge.count({ where: { slug: { startsWith: slugBase } } });
+  const slug = existing ? `${slugBase}-${existing + 1}` : slugBase;
+
+  return prisma.lodge.create({
+    data: {
+      ...input,
+      slug,
+      subscriptionExpiresAt: input.subscriptionExpiresAt ? new Date(input.subscriptionExpiresAt) : null,
+      images: { create: input.images.map((image, index) => ({ ...image, sortOrder: image.sortOrder ?? index })) }
+    },
+    include: lodgeInclude
+  });
+}
+
+export async function updateLodge(id: string, input: LodgeInput) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to update lodge listings.");
+  return prisma.$transaction(async (tx) => {
+    await tx.lodgeImage.deleteMany({ where: { lodgeId: id } });
+    return tx.lodge.update({
+      where: { id },
+      data: {
+        ...input,
+        subscriptionExpiresAt: input.subscriptionExpiresAt ? new Date(input.subscriptionExpiresAt) : null,
+        images: { create: input.images.map((image, index) => ({ ...image, sortOrder: image.sortOrder ?? index })) }
+      },
+      include: lodgeInclude
+    });
+  });
+}
+
+export async function updateLodgeStatus(id: string, status: LodgeStatus) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to update lodge listings.");
+  return prisma.lodge.update({ where: { id }, data: { status }, include: lodgeInclude });
+}
+
+export async function toggleLodgeFeatured(id: string, isFeatured: boolean) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to update lodge listings.");
+  return prisma.lodge.update({ where: { id }, data: { isFeatured }, include: lodgeInclude });
+}
+
+export async function deleteLodge(id: string) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to delete lodge listings.");
+  return prisma.lodge.delete({ where: { id } });
+}
+
+export async function incrementLodgeViews(id: string) {
+  if (!databaseReady()) return null;
+  return prisma.lodge.update({ where: { id }, data: { views: { increment: 1 } } }).catch(() => null);
+}
+
+export async function incrementLodgeWhatsappClicks(id: string) {
+  if (!databaseReady()) return fallbackLodges.find((lodge) => lodge.id === id) ?? null;
+  return prisma.lodge
+    .update({ where: { id }, data: { whatsappClicks: { increment: 1 } }, include: lodgeInclude })
+    .catch(() => fallbackLodges.find((lodge) => lodge.id === id) ?? null);
 }
 
 export async function createGroup(input: {

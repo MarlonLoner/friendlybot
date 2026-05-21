@@ -22,6 +22,9 @@ export function SiteHeader() {
           <Link className="rounded-md px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white" href="/categories">
             Categories
           </Link>
+          <Link className="rounded-md px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white" href="/lodges">
+            Find Lodges
+          </Link>
           <Link className="rounded-md px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white" href="/admin">
             Admin
           </Link>
@@ -29,11 +32,11 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/friendlybot"
+            href="/lodges/list-your-lodge"
             className="inline-flex items-center gap-2 rounded-md bg-eclipse-gold px-3 py-2 text-sm font-semibold text-eclipse-blue shadow-sm transition hover:bg-[#e8b957]"
           >
             <Search className="h-4 w-4" aria-hidden="true" />
-            Ask
+            List
           </Link>
           <Link
             href="/admin"

@@ -21,6 +21,21 @@ enum GroupRequestStatus {
   IGNORED
 }
 
+enum LodgeStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  NONE
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
 model Category {
   id          String   @id @default(cuid())
   name        String
@@ -91,4 +106,64 @@ model GroupRequest {
   @@index([category])
   @@index([location])
   @@index([createdGroupId])
+}
+
+model Lodge {
+  id                    String             @id @default(cuid())
+  name                  String
+  slug                  String             @unique
+  ownerName             String?
+  whatsappNumber        String
+  phoneNumber           String?
+  email                 String?
+  location              String
+  address               String?
+  googleMapsUrl         String?
+  priceFrom             Int
+  lodgeType             String
+  roomTypes             String?
+  facilities            String[]
+  description           String
+  status                LodgeStatus        @default(PENDING)
+  isFeatured            Boolean            @default(false)
+  subscriptionStatus    SubscriptionStatus @default(NONE)
+  subscriptionExpiresAt DateTime?
+  notes                 String?
+  views                 Int                @default(0)
+  whatsappClicks        Int                @default(0)
+  images                LodgeImage[]
+  inquiries             LodgeInquiry[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([status])
+  @@index([location])
+  @@index([lodgeType])
+  @@index([isFeatured])
+  @@index([subscriptionStatus])
+}
+
+model LodgeImage {
+  id        String   @id @default(cuid())
+  lodgeId   String
+  lodge     Lodge    @relation(fields: [lodgeId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  altText   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([lodgeId])
+}
+
+model LodgeInquiry {
+  id             String   @id @default(cuid())
+  lodgeId         String
+  lodge           Lodge    @relation(fields: [lodgeId], references: [id], onDelete: Cascade)
+  name           String?
+  whatsappNumber String?
+  message        String
+  createdAt      DateTime @default(now())
+
+  @@index([lodgeId])
+  @@index([createdAt])
 }

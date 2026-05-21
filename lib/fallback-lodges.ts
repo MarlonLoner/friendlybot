@@ -1,0 +1,120 @@
+import type { LodgeRecord } from "@/lib/types";
+
+const now = new Date().toISOString();
+
+function image(id: string, lodgeId: string, imageUrl: string, altText: string, sortOrder = 0) {
+  return { id, lodgeId, imageUrl, altText, sortOrder, createdAt: now };
+}
+
+export const fallbackLodges: LodgeRecord[] = [
+  {
+    id: "seed-lodge-kariba-sunset-lodge",
+    name: "Kariba Sunset Lodge",
+    slug: "kariba-sunset-lodge",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263771234567",
+    location: "Kariba",
+    address: "Lake Drive, Kariba",
+    googleMapsUrl: "https://maps.google.com/?q=Kariba",
+    priceFrom: 85,
+    lodgeType: "Lodge",
+    roomTypes: "Standard rooms, family rooms, lake-view chalets",
+    facilities: ["WiFi", "Swimming Pool", "Parking", "Restaurant", "Bar", "Family Friendly", "Air Conditioning"],
+    description: "A warm lake-facing lodge for family holidays, fishing weekends and relaxed Kariba getaways.",
+    status: "ACTIVE",
+    isFeatured: true,
+    subscriptionStatus: "TRIAL",
+    views: 0,
+    whatsappClicks: 0,
+    images: [
+      image("img-kariba-1", "seed-lodge-kariba-sunset-lodge", "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80", "Kariba lodge exterior"),
+      image("img-kariba-2", "seed-lodge-kariba-sunset-lodge", "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80", "Pool and rooms", 1)
+    ],
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    id: "seed-lodge-victoria-falls-family-guest-house",
+    name: "Victoria Falls Family Guest House",
+    slug: "victoria-falls-family-guest-house",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263772345678",
+    location: "Victoria Falls",
+    priceFrom: 65,
+    lodgeType: "Guest House",
+    roomTypes: "Double rooms, twin rooms, family suite",
+    facilities: ["WiFi", "Parking", "Restaurant", "Family Friendly", "Hot Water", "Security"],
+    description: "A comfortable guest house close to Victoria Falls activities, ideal for families and small groups.",
+    status: "ACTIVE",
+    isFeatured: true,
+    subscriptionStatus: "ACTIVE",
+    views: 0,
+    whatsappClicks: 0,
+    images: [image("img-vicfalls-1", "seed-lodge-victoria-falls-family-guest-house", "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80", "Guest house lounge")],
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    id: "seed-lodge-nyanga-mist-cottages",
+    name: "Nyanga Mist Cottages",
+    slug: "nyanga-mist-cottages",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263773456789",
+    location: "Nyanga",
+    priceFrom: 70,
+    lodgeType: "Cottage",
+    roomTypes: "Self-catering cottages and mountain-view cabins",
+    facilities: ["Parking", "Self Catering", "Family Friendly", "Hot Water", "Backup Power", "Security"],
+    description: "Quiet mountain cottages for weekend retreats, family stays and misty Nyanga escapes.",
+    status: "ACTIVE",
+    isFeatured: false,
+    subscriptionStatus: "TRIAL",
+    views: 0,
+    whatsappClicks: 0,
+    images: [image("img-nyanga-1", "seed-lodge-nyanga-mist-cottages", "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=1200&q=80", "Mountain cottage")],
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    id: "seed-lodge-harare-executive-guest-house",
+    name: "Harare Executive Guest House",
+    slug: "harare-executive-guest-house",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263774567890",
+    location: "Harare",
+    priceFrom: 55,
+    lodgeType: "Guest House",
+    roomTypes: "Executive rooms, conference package rooms",
+    facilities: ["WiFi", "Parking", "Restaurant", "Conference Room", "Air Conditioning", "Backup Power", "Security"],
+    description: "Business-friendly guest house with convenient city access and practical meeting facilities.",
+    status: "ACTIVE",
+    isFeatured: false,
+    subscriptionStatus: "ACTIVE",
+    views: 0,
+    whatsappClicks: 0,
+    images: [image("img-harare-1", "seed-lodge-harare-executive-guest-house", "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80", "Executive room")],
+    createdAt: now,
+    updatedAt: now
+  },
+  {
+    id: "seed-lodge-lake-chivero-weekend-lodge",
+    name: "Lake Chivero Weekend Lodge",
+    slug: "lake-chivero-weekend-lodge",
+    ownerName: "Eclipse Demo",
+    whatsappNumber: "+263775678901",
+    location: "Lake Chivero",
+    priceFrom: 60,
+    lodgeType: "Lodge",
+    roomTypes: "Weekend chalets and group rooms",
+    facilities: ["Parking", "Restaurant", "Bar", "Self Catering", "Family Friendly", "Security"],
+    description: "A simple weekend lodge for quick escapes, group braais and lakeside relaxation near Harare.",
+    status: "ACTIVE",
+    isFeatured: false,
+    subscriptionStatus: "NONE",
+    views: 0,
+    whatsappClicks: 0,
+    images: [image("img-chivero-1", "seed-lodge-lake-chivero-weekend-lodge", "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=80", "Lakeside lodge")],
+    createdAt: now,
+    updatedAt: now
+  }
+];

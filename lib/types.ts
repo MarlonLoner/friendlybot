@@ -1,5 +1,7 @@
 export type GroupStatus = "ACTIVE" | "ALMOST_FULL" | "FULL" | "ARCHIVED";
 export type GroupRequestStatus = "NEW" | "REVIEWED" | "CREATED" | "IGNORED";
+export type LodgeStatus = "PENDING" | "ACTIVE" | "REJECTED" | "ARCHIVED";
+export type SubscriptionStatus = "NONE" | "TRIAL" | "ACTIVE" | "EXPIRED" | "CANCELLED";
 
 export type CategoryRecord = {
   id: string;
@@ -69,6 +71,53 @@ export type DemandSignal = {
   count: number;
   suggestedAction: "Create a new group" | "Add more groups" | "Review existing category";
   source: "search" | "request" | "combined";
+};
+
+export type LodgeImageRecord = {
+  id: string;
+  lodgeId: string;
+  imageUrl: string;
+  altText?: string | null;
+  sortOrder: number;
+  createdAt?: Date | string;
+};
+
+export type LodgeRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  ownerName?: string | null;
+  whatsappNumber: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+  location: string;
+  address?: string | null;
+  googleMapsUrl?: string | null;
+  priceFrom: number;
+  lodgeType: string;
+  roomTypes?: string | null;
+  facilities: string[];
+  description: string;
+  status: LodgeStatus;
+  isFeatured: boolean;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionExpiresAt?: Date | string | null;
+  notes?: string | null;
+  views: number;
+  whatsappClicks: number;
+  images: LodgeImageRecord[];
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+};
+
+export type LodgeFilters = {
+  query?: string;
+  location?: string;
+  priceRange?: string;
+  lodgeType?: string;
+  facilities?: string[];
+  status?: LodgeStatus | "ALL";
+  includeArchived?: boolean;
 };
 
 export type SearchFilters = {

@@ -166,3 +166,10 @@ export function groupStatusLabel(status: WhatsAppGroupRecord["status"]) {
       return "Archived";
   }
 }
+
+export function isLodgeRelatedQuery(query: string) {
+  const normalized = normalizeText(query);
+  return ["lodge", "lodges", "accommodation", "stay", "stays", "hotel", "guest house", "guesthouse", "cottage", "resort", "safari camp"].some(
+    (term) => normalized.includes(term)
+  );
+}

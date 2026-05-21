@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, FolderTree, Inbox, Lightbulb, Loader2, MapPin, Search, Tags, TrendingUp, UsersRound } from "lucide-react";
+import { AlertCircle, FolderTree, Hotel, Inbox, Lightbulb, Loader2, MapPin, MousePointerClick, Search, Star, Tags, TrendingUp, UsersRound } from "lucide-react";
 import { getStoredAdminCode } from "@/components/admin-auth-gate";
 import { RequestStatusBadge } from "@/components/request-status-badge";
-import type { DemandSignal, GroupRequestRecord, TopItem } from "@/lib/types";
+import type { DemandSignal, GroupRequestRecord, LodgeRecord, TopItem } from "@/lib/types";
 
 type Stats = {
   totalGroups: number;
@@ -15,6 +15,13 @@ type Stats = {
   fullGroups: number;
   totalRequests: number;
   newRequests: number;
+  totalLodges: number;
+  pendingLodges: number;
+  activeLodges: number;
+  featuredLodges: number;
+  expiredSubscriptions: number;
+  lodgeWhatsappClicks: number;
+  mostViewedLodges: LodgeRecord[];
   demand: {
     topNoResultSearches: TopItem[];
     latestGroupRequests: GroupRequestRecord[];
@@ -31,6 +38,12 @@ const statConfig = [
   { key: "noResultSearches", label: "No-result searches", icon: AlertCircle },
   { key: "totalRequests", label: "Group requests", icon: Inbox },
   { key: "newRequests", label: "New requests", icon: Lightbulb },
+  { key: "totalLodges", label: "Total lodges", icon: Hotel },
+  { key: "pendingLodges", label: "Pending lodges", icon: AlertCircle },
+  { key: "activeLodges", label: "Active lodges", icon: Hotel },
+  { key: "featuredLodges", label: "Featured lodges", icon: Star },
+  { key: "expiredSubscriptions", label: "Expired subs", icon: AlertCircle },
+  { key: "lodgeWhatsappClicks", label: "Lodge WhatsApp clicks", icon: MousePointerClick },
   { key: "almostFullGroups", label: "Almost full", icon: TrendingUp },
   { key: "fullGroups", label: "Full groups", icon: AlertCircle }
 ] satisfies { key: keyof Omit<Stats, "demand">; label: string; icon: typeof UsersRound }[];
@@ -86,6 +99,22 @@ export function AdminDashboard() {
           );
         })}
       </div>
+
+      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
+        <h2 className="font-semibold text-eclipse-ink">Most viewed lodges</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {(stats?.mostViewedLodges ?? []).length > 0 ? (
+            stats?.mostViewedLodges.map((lodge) => (
+              <article key={lodge.id} className="rounded-lg bg-eclipse-mist p-3">
+                <p className="font-semibold text-eclipse-ink">{lodge.name}</p>
+                <p className="mt-1 text-sm text-slate-600">{lodge.views} views / {lodge.whatsappClicks} clicks</p>
+              </article>
+            ))
+          ) : (
+            <p className="text-sm text-slate-600">No lodge views yet.</p>
+          )}
+        </div>
+      </section>
 
       <section className="mt-6 rounded-lg bg-eclipse-blue p-6 text-white shadow-soft">
         <h2 className="text-xl font-semibold">Operational focus</h2>
