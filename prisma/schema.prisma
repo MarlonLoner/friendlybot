@@ -14,6 +14,13 @@ enum GroupStatus {
   ARCHIVED
 }
 
+enum GroupRequestStatus {
+  NEW
+  REVIEWED
+  CREATED
+  IGNORED
+}
+
 model Category {
   id          String   @id @default(cuid())
   name        String
@@ -41,6 +48,7 @@ model WhatsAppGroup {
   isFeatured     Boolean     @default(false)
   clicks         Int         @default(0)
   lastVerifiedAt DateTime?
+  groupRequests  GroupRequest[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -62,4 +70,25 @@ model SearchLog {
   @@index([resultsFound])
   @@index([matchedCategory])
   @@index([matchedLocation])
+}
+
+model GroupRequest {
+  id              String             @id @default(cuid())
+  name            String?
+  whatsappNumber  String?
+  query           String
+  category        String?
+  location        String?
+  notes           String?
+  status          GroupRequestStatus @default(NEW)
+  createdGroupId  String?
+  createdGroup    WhatsAppGroup?     @relation(fields: [createdGroupId], references: [id], onDelete: SetNull)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([category])
+  @@index([location])
+  @@index([createdGroupId])
 }

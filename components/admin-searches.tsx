@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, MapPin, Search, Tags } from "lucide-react";
+import Link from "next/link";
+import { Loader2, MapPin, Plus, Search, Tags } from "lucide-react";
 import { getStoredAdminCode } from "@/components/admin-auth-gate";
-import type { SearchLogRecord } from "@/lib/types";
-
-type TopItem = {
-  name: string;
-  count: number;
-};
+import type { SearchLogRecord, TopItem } from "@/lib/types";
 
 type SearchAnalytics = {
   recentSearches: SearchLogRecord[];
   noResultSearches: SearchLogRecord[];
+  repeatedNoResultQueries: TopItem[];
   topTerms: TopItem[];
   topCategories: TopItem[];
   topLocations: TopItem[];
@@ -21,9 +18,12 @@ type SearchAnalytics = {
 export function AdminSearches() {
   const [analytics, setAnalytics] = useState<SearchAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<"ALL" | "FOUND" | "NO_RESULTS">("ALL");
+  const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/searches", {
+  async function loadAnalytics(nextFilter = filter) {
+    setIsLoading(true);
+    fetch(`/api/admin/searches?filter=${nextFilter}`, {
       headers: {
         "x-admin-access-code": getStoredAdminCode()
       }
@@ -31,7 +31,40 @@ export function AdminSearches() {
       .then((response) => response.json())
       .then((data) => setAnalytics(data))
       .finally(() => setIsLoading(false));
+  }
+
+  useEffect(() => {
+    void loadAnalytics(filter);
   }, []);
+
+  function changeFilter(nextFilter: "ALL" | "FOUND" | "NO_RESULTS") {
+    setFilter(nextFilter);
+    void loadAnalytics(nextFilter);
+  }
+
+  async function createRequestFromSearch(search: SearchLogRecord) {
+    setMessage(null);
+    const response = await fetch("/api/group-requests", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        query: search.query,
+        category: search.matchedCategory ?? "",
+        location: search.matchedLocation ?? "",
+        notes: "Created from an admin review of a no-result search."
+      })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setMessage(data.error ?? "Could not create a group request from this search.");
+      return;
+    }
+
+    setMessage("Group request created from search.");
+  }
 
   if (isLoading) {
     return (
@@ -51,6 +84,27 @@ export function AdminSearches() {
         </p>
       </div>
 
+      <div className="mb-5 flex flex-wrap gap-2">
+        {[
+          ["ALL", "All searches"],
+          ["FOUND", "Results found"],
+          ["NO_RESULTS", "No results"]
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => changeFilter(value as "ALL" | "FOUND" | "NO_RESULTS")}
+            className={`rounded-md px-3 py-2 text-sm font-semibold ${
+              filter === value ? "bg-eclipse-blue text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {message ? <p className="mb-5 rounded-lg bg-eclipse-gold/15 px-4 py-3 text-sm text-eclipse-ink">{message}</p> : null}
+
       <div className="grid gap-5 xl:grid-cols-3">
         <TopList title="Top searched terms" icon={Search} items={analytics?.topTerms ?? []} />
         <TopList title="Top categories" icon={Tags} items={analytics?.topCategories ?? []} />
@@ -58,8 +112,14 @@ export function AdminSearches() {
       </div>
 
       <div className="mt-6 grid gap-5 xl:grid-cols-2">
-        <SearchList title="Recent searches" searches={analytics?.recentSearches ?? []} />
-        <SearchList title="No-result searches" searches={analytics?.noResultSearches ?? []} emptyText="No missed searches yet." />
+        <RepeatedNoResults items={analytics?.repeatedNoResultQueries ?? []} />
+        <SearchList title="Recent searches" searches={analytics?.recentSearches ?? []} onCreateRequest={createRequestFromSearch} />
+        <SearchList
+          title="No-result searches"
+          searches={analytics?.noResultSearches ?? []}
+          emptyText="No missed searches yet. FriendlyBot will list exact misses here as people search."
+          onCreateRequest={createRequestFromSearch}
+        />
       </div>
     </div>
   );
@@ -93,11 +153,13 @@ function TopList({ title, icon: Icon, items }: { title: string; icon: typeof Sea
 function SearchList({
   title,
   searches,
-  emptyText = "No searches logged yet."
+  emptyText = "No searches logged yet.",
+  onCreateRequest
 }: {
   title: string;
   searches: SearchLogRecord[];
   emptyText?: string;
+  onCreateRequest?: (search: SearchLogRecord) => void;
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
@@ -123,12 +185,50 @@ function SearchList({
                     {search.resultsFound ? "Results found" : "No results"}
                   </span>
                 </div>
+                {!search.resultsFound ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onCreateRequest?.(search)}
+                      className="inline-flex items-center gap-2 rounded-md bg-eclipse-gold px-3 py-2 text-sm font-semibold text-eclipse-blue transition hover:bg-[#e8b957]"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Create Request
+                    </button>
+                    <Link
+                      href={`/admin/requests`}
+                      className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Create Group
+                    </Link>
+                  </div>
+                ) : null}
                 <p className="mt-2 text-xs text-slate-500">{new Date(search.createdAt).toLocaleString()}</p>
               </article>
             ))}
           </div>
         ) : (
           <p className="p-4 text-sm text-slate-600">{emptyText}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RepeatedNoResults({ items }: { items: TopItem[] }) {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
+      <h2 className="font-semibold text-eclipse-ink">Repeated no-result queries</h2>
+      <div className="mt-4 space-y-3">
+        {items.length > 0 ? (
+          items.map((item) => (
+            <div key={item.name} className="flex items-center justify-between gap-4 rounded-lg bg-eclipse-mist px-3 py-2">
+              <span className="text-sm font-medium text-eclipse-ink">{item.name}</span>
+              <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{item.count}</span>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-slate-600">No repeated misses yet. This will become more useful as search volume grows.</p>
         )}
       </div>
     </section>

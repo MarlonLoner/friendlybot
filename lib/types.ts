@@ -1,4 +1,5 @@
 export type GroupStatus = "ACTIVE" | "ALMOST_FULL" | "FULL" | "ARCHIVED";
+export type GroupRequestStatus = "NEW" | "REVIEWED" | "CREATED" | "IGNORED";
 
 export type CategoryRecord = {
   id: string;
@@ -41,6 +42,33 @@ export type SearchLogRecord = {
   matchedLocation?: string | null;
   resultsFound: boolean;
   createdAt: Date | string;
+};
+
+export type GroupRequestRecord = {
+  id: string;
+  name?: string | null;
+  whatsappNumber?: string | null;
+  query: string;
+  category?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  status: GroupRequestStatus;
+  createdGroupId?: string | null;
+  createdGroup?: WhatsAppGroupRecord | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
+export type TopItem = {
+  name: string;
+  count: number;
+};
+
+export type DemandSignal = {
+  term: string;
+  count: number;
+  suggestedAction: "Create a new group" | "Add more groups" | "Review existing category";
+  source: "search" | "request" | "combined";
 };
 
 export type SearchFilters = {

@@ -1,4 +1,4 @@
-import type { CategoryRecord, WhatsAppGroupRecord } from "@/lib/types";
+import type { CategoryRecord, GroupRequestRecord, WhatsAppGroupRecord } from "@/lib/types";
 
 export const fallbackCategories: CategoryRecord[] = [
   {
@@ -221,4 +221,57 @@ export const fallbackGroups: WhatsAppGroupRecord[] = [
     "ACTIVE",
     true
   )
+];
+
+export const fallbackGroupRequests: GroupRequestRecord[] = [
+  {
+    id: "request-beekeeping-zimbabwe",
+    query: "Beekeeping group in Zimbabwe",
+    category: "Farming",
+    location: "Zimbabwe",
+    notes: "People are asking for honey production, hives and buyer connections.",
+    status: "NEW",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "request-kariba-lodges",
+    query: "Kariba lodges group",
+    category: "Tourism",
+    location: "Kariba",
+    notes: "Likely demand for lodge availability and travel packages.",
+    status: "REVIEWED",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "request-goat-farming-buyers",
+    query: "Goat farming buyers",
+    category: "Farming",
+    location: "Zimbabwe",
+    notes: "Buyer-focused livestock group could reduce repeat manual replies.",
+    status: "NEW",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "request-solar-equipment-suppliers",
+    query: "Solar equipment suppliers",
+    category: "Business",
+    location: "Zimbabwe",
+    notes: "Supplier discovery request for panels, batteries and installers.",
+    status: "NEW",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "request-truck-hire-group",
+    query: "Truck hire group",
+    category: "Transport",
+    location: "Zimbabwe",
+    notes: "Demand for transport operators and truck hire leads.",
+    status: "REVIEWED",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
 ];

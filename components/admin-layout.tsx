@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, Bot, Home, LogOut, Search, UsersRound } from "lucide-react";
+import { BarChart3, Bot, Home, Inbox, LogOut, Search, UsersRound } from "lucide-react";
 import { adminStorageKey } from "@/lib/admin-storage";
 
 const links = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
   { href: "/admin/groups", label: "Groups", icon: UsersRound },
-  { href: "/admin/searches", label: "Searches", icon: Search }
+  { href: "/admin/searches", label: "Searches", icon: Search },
+  { href: "/admin/requests", label: "Requests", icon: Inbox }
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

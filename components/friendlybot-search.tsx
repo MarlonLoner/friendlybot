@@ -2,9 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bot, Loader2, Search, Sparkles } from "lucide-react";
+import { Bot, CheckCircle2, Loader2, Search, Send, Sparkles } from "lucide-react";
 import { GroupCard } from "@/components/group-card";
-import type { WhatsAppGroupRecord } from "@/lib/types";
+import type { CategoryRecord, WhatsAppGroupRecord } from "@/lib/types";
 
 type SearchResponse = {
   results: WhatsAppGroupRecord[];
@@ -23,6 +23,7 @@ export function FriendlyBotSearch() {
   const [category, setCategory] = useState(initialCategory);
   const [results, setResults] = useState<WhatsAppGroupRecord[]>([]);
   const [meta, setMeta] = useState<Pick<SearchResponse, "matchedCategory" | "matchedLocation" | "resultsFound"> | null>(null);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +87,13 @@ export function FriendlyBotSearch() {
     event.preventDefault();
     void runSearch();
   }
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((response) => response.json())
+      .then((data) => setCategories(data.categories ?? []))
+      .catch(() => setCategories([]));
+  }, []);
 
   useEffect(() => {
     if (initialQuery || initialCategory) {
@@ -186,19 +194,12 @@ export function FriendlyBotSearch() {
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-eclipse-gold/50 bg-white p-6 shadow-soft">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-eclipse-gold/15 text-eclipse-gold">
-                    <Bot className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-eclipse-ink">No exact match yet</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      We could not find an exact match yet, but we have logged this request so the Eclipse team can create or recommend a group.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <GroupRequestCard
+                categories={categories}
+                query={requestLabel}
+                matchedCategory={meta?.matchedCategory ?? null}
+                matchedLocation={meta?.matchedLocation ?? null}
+              />
             )}
           </div>
         ) : null}
@@ -212,6 +213,160 @@ export function FriendlyBotSearch() {
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function GroupRequestCard({
+  categories,
+  query,
+  matchedCategory,
+  matchedLocation
+}: {
+  categories: CategoryRecord[];
+  query: string;
+  matchedCategory: string | null;
+  matchedLocation: string | null;
+}) {
+  const [form, setForm] = useState({
+    name: "",
+    whatsappNumber: "",
+    query,
+    category: matchedCategory ?? "",
+    location: matchedLocation ?? "",
+    notes: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      query,
+      category: current.category || matchedCategory || "",
+      location: current.location || matchedLocation || ""
+    }));
+    setIsSubmitted(false);
+    setError(null);
+  }, [matchedCategory, matchedLocation, query]);
+
+  async function submitRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/group-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(form)
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "FriendlyBot could not save this request.");
+      }
+
+      setIsSubmitted(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "FriendlyBot could not save this request. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="rounded-lg border border-emerald-100 bg-white p-6 shadow-soft">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <div>
+            <h3 className="text-lg font-semibold text-eclipse-ink">Request received.</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Request received. FriendlyBot has sent this to the Eclipse team.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-eclipse-gold/40 bg-white p-5 shadow-soft sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-eclipse-gold/15 text-eclipse-gold">
+          <Bot className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <div>
+          <h3 className="text-lg font-semibold text-eclipse-ink">We couldn&apos;t find that group yet.</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Tell us what you&apos;re looking for and the Eclipse team may create or recommend the right group.
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={submitRequest} className="mt-5 grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block text-sm font-semibold text-eclipse-ink">
+            Name optional
+            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="input mt-2" />
+          </label>
+          <label className="block text-sm font-semibold text-eclipse-ink">
+            WhatsApp number optional
+            <input
+              value={form.whatsappNumber}
+              onChange={(event) => setForm({ ...form, whatsappNumber: event.target.value })}
+              className="input mt-2"
+              placeholder="+263..."
+            />
+          </label>
+        </div>
+        <label className="block text-sm font-semibold text-eclipse-ink">
+          What are you looking for?
+          <input required value={form.query} onChange={(event) => setForm({ ...form, query: event.target.value })} className="input mt-2" />
+        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block text-sm font-semibold text-eclipse-ink">
+            Location optional
+            <input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} className="input mt-2" />
+          </label>
+          <label className="block text-sm font-semibold text-eclipse-ink">
+            Category optional
+            <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="input mt-2">
+              <option value="">Not sure</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.name}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="block text-sm font-semibold text-eclipse-ink">
+          Notes optional
+          <textarea
+            value={form.notes}
+            onChange={(event) => setForm({ ...form, notes: event.target.value })}
+            rows={3}
+            className="input mt-2 min-h-24 py-3"
+            placeholder="Any details that would help Sandra's team recommend the right group."
+          />
+        </label>
+
+        {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+
+        <button
+          type="submit"
+          disabled={isSubmitting || !form.query.trim()}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-eclipse-gold px-4 text-sm font-semibold text-eclipse-blue transition hover:bg-[#e8b957] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+        >
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+          Request this group
+        </button>
+      </form>
     </div>
   );
 }

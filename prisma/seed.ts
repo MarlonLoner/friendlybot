@@ -1,4 +1,4 @@
-import { PrismaClient, GroupStatus } from "@prisma/client";
+import { GroupRequestStatus, GroupStatus, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -168,6 +168,49 @@ const groups = [
   }
 ];
 
+const groupRequests = [
+  {
+    id: "seed-request-beekeeping-zimbabwe",
+    query: "Beekeeping group in Zimbabwe",
+    category: "Farming",
+    location: "Zimbabwe",
+    notes: "People are asking for honey production, hives and buyer connections.",
+    status: GroupRequestStatus.NEW
+  },
+  {
+    id: "seed-request-kariba-lodges",
+    query: "Kariba lodges group",
+    category: "Tourism",
+    location: "Kariba",
+    notes: "Likely demand for lodge availability and travel packages.",
+    status: GroupRequestStatus.REVIEWED
+  },
+  {
+    id: "seed-request-goat-farming-buyers",
+    query: "Goat farming buyers",
+    category: "Farming",
+    location: "Zimbabwe",
+    notes: "Buyer-focused livestock group could reduce repeat manual replies.",
+    status: GroupRequestStatus.NEW
+  },
+  {
+    id: "seed-request-solar-equipment-suppliers",
+    query: "Solar equipment suppliers",
+    category: "Business",
+    location: "Zimbabwe",
+    notes: "Supplier discovery request for panels, batteries and installers.",
+    status: GroupRequestStatus.NEW
+  },
+  {
+    id: "seed-request-truck-hire-group",
+    query: "Truck hire group",
+    category: "Transport",
+    location: "Zimbabwe",
+    notes: "Demand for transport operators and truck hire leads.",
+    status: GroupRequestStatus.REVIEWED
+  }
+];
+
 async function main() {
   const createdCategories = new Map<string, string>();
 
@@ -218,6 +261,20 @@ async function main() {
         isFeatured: group.isFeatured,
         lastVerifiedAt: new Date()
       }
+    });
+  }
+
+  for (const request of groupRequests) {
+    await prisma.groupRequest.upsert({
+      where: { id: request.id },
+      update: {
+        query: request.query,
+        category: request.category,
+        location: request.location,
+        notes: request.notes,
+        status: request.status
+      },
+      create: request
     });
   }
 }

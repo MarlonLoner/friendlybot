@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const analytics = await getSearchAnalytics();
+  const filter = request.nextUrl.searchParams.get("filter");
+  const analytics = await getSearchAnalytics(filter === "FOUND" || filter === "NO_RESULTS" ? filter : "ALL");
   return NextResponse.json(analytics);
 }
