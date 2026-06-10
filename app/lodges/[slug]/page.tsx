@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MapPin, ShieldCheck } from "lucide-react";
+import { LodgeImageCarousel } from "@/components/lodge-image-carousel";
 import { LodgeCard } from "@/components/lodge-card";
 import { LodgeWhatsappButton } from "@/components/lodge-whatsapp-button";
 import { SiteHeader } from "@/components/site-header";
@@ -13,7 +14,6 @@ export default async function LodgeDetailPage({ params }: { params: Promise<{ sl
   if (!lodge) notFound();
   await incrementLodgeViews(lodge.id);
   const similar = (await getLodges({ location: lodge.location })).filter((item) => item.id !== lodge.id).slice(0, 3);
-  const hero = lodge.images[0]?.imageUrl ?? "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
 
   return (
     <main className="min-h-screen bg-eclipse-mist">
@@ -26,12 +26,7 @@ export default async function LodgeDetailPage({ params }: { params: Promise<{ sl
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-          <img src={hero} alt={lodge.name} className="aspect-[16/10] w-full rounded-lg object-cover shadow-soft" />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            {lodge.images.slice(1, 3).map((image) => <img key={image.id} src={image.imageUrl} alt={image.altText ?? lodge.name} className="aspect-[16/10] w-full rounded-lg object-cover shadow-soft" />)}
-          </div>
-        </div>
+        <LodgeImageCarousel images={lodge.images} lodgeName={lodge.name} mode="detail" showThumbnails enableLightbox />
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
           <article className="rounded-lg bg-white p-6 shadow-soft">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-eclipse-gold">{lodge.lodgeType}</p>

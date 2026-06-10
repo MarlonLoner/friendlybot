@@ -2,22 +2,21 @@
 
 import Link from "next/link";
 import { ExternalLink, MapPin, Star } from "lucide-react";
+import { LodgeImageCarousel } from "@/components/lodge-image-carousel";
 import { formatPrice } from "@/lib/lodge-options";
 import type { LodgeRecord } from "@/lib/types";
 
 export function LodgeCard({ lodge }: { lodge: LodgeRecord }) {
-  const image = lodge.images[0]?.imageUrl ?? "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
-
   function trackClick() {
     void fetch(`/api/lodges/${lodge.id}/whatsapp-click`, { method: "POST", keepalive: true });
   }
 
   return (
     <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-soft">
-      <div className="relative aspect-[4/3] bg-eclipse-blue">
-        <img src={image} alt={lodge.images[0]?.altText ?? lodge.name} className="h-full w-full object-cover" />
+      <div className="relative bg-eclipse-blue">
+        <LodgeImageCarousel images={lodge.images} lodgeName={lodge.name} mode="compact" showThumbnails={false} enableLightbox={false} />
         {lodge.isFeatured ? (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-md bg-eclipse-gold px-2 py-1 text-xs font-bold text-eclipse-blue">
+          <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-md bg-eclipse-gold px-2 py-1 text-xs font-bold text-eclipse-blue shadow-sm">
             <Star className="h-3.5 w-3.5" aria-hidden="true" />
             Featured
           </span>

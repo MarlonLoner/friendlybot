@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Edit3, Loader2, Plus, Star, Trash2, XCircle } from "lucide-react";
 import { getStoredAdminCode } from "@/components/admin-auth-gate";
+import { LodgeImageCarousel } from "@/components/lodge-image-carousel";
 import { getHiddenLodgeReason, hasPublicLodgeVisibility } from "@/lib/lodge-visibility";
 import { formatPrice } from "@/lib/lodge-options";
 import type { LodgeRecord } from "@/lib/types";
@@ -138,7 +139,7 @@ export function AdminLodges() {
             return (
             <article key={lodge.id} className="rounded-lg border border-slate-200 p-4">
               <div className="grid gap-4 lg:grid-cols-[140px_1fr_auto]">
-                <img src={lodge.images[0]?.imageUrl ?? "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80"} alt={lodge.name} className="aspect-[4/3] w-full rounded-lg object-cover" />
+                <LodgeImageCarousel images={lodge.images} lodgeName={lodge.name} mode="compact" showThumbnails={false} enableLightbox={false} className="overflow-hidden rounded-lg" />
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg font-semibold text-eclipse-ink">{lodge.name}</h2>
