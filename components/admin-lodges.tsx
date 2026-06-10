@@ -5,32 +5,45 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Edit3, Loader2, Plus, Star, Trash2, XCircle } from "lucide-react";
 import { getStoredAdminCode } from "@/components/admin-auth-gate";
 import { formatPrice } from "@/lib/lodge-options";
-import type { LodgeRecord, LodgeStatus } from "@/lib/types";
+import type { LodgeRecord } from "@/lib/types";
 
-const statuses: (LodgeStatus | "ALL")[] = ["ALL", "PENDING", "ACTIVE", "REJECTED", "ARCHIVED"];
-const paymentFilters = ["ALL", "PENDING_PAYMENT", "POP_RECEIVED", "ACTIVE_SUBSCRIPTION", "EXPIRED_SUBSCRIPTION", "PENDING_APPROVAL"] as const;
+const queueTabs = [
+  { id: "ACTION_NEEDED", label: "Action Needed" },
+  { id: "PENDING_PAYMENT", label: "Pending Payment" },
+  { id: "POP_RECEIVED", label: "POP Received" },
+  { id: "ACTIVE", label: "Active Listings" },
+  { id: "EXPIRING_SOON", label: "Expiring Soon" },
+  { id: "EXPIRED", label: "Expired" },
+  { id: "ARCHIVED", label: "Archived" },
+  { id: "ALL", label: "All Lodges" }
+] as const;
+
+type QueueTab = (typeof queueTabs)[number]["id"];
 
 export function AdminLodges() {
   const [lodges, setLodges] = useState<LodgeRecord[]>([]);
-  const [status, setStatus] = useState<LodgeStatus | "ALL">("ALL");
-  const [paymentFilter, setPaymentFilter] = useState<(typeof paymentFilters)[number]>("ALL");
+  const [activeTab, setActiveTab] = useState<QueueTab>("ACTION_NEEDED");
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
+  const tabCounts = useMemo(() => {
+    return queueTabs.reduce<Record<QueueTab, number>>((counts, tab) => {
+      counts[tab.id] = lodges.filter((lodge) => matchesQueueTab(lodge, tab.id)).length;
+      return counts;
+    }, {} as Record<QueueTab, number>);
+  }, [lodges]);
+
   const filtered = useMemo(() => {
     const normalized = query.toLowerCase().trim();
     return lodges.filter((lodge) => {
-      if (status !== "ALL" && lodge.status !== status) return false;
-      if (paymentFilter === "PENDING_PAYMENT" && lodge.subscriptionStatus !== "PENDING_PAYMENT") return false;
-      if (paymentFilter === "POP_RECEIVED" && lodge.proofOfPaymentStatus !== "RECEIVED") return false;
-      if (paymentFilter === "ACTIVE_SUBSCRIPTION" && lodge.subscriptionStatus !== "ACTIVE") return false;
-      if (paymentFilter === "EXPIRED_SUBSCRIPTION" && lodge.subscriptionStatus !== "EXPIRED") return false;
-      if (paymentFilter === "PENDING_APPROVAL" && lodge.status !== "PENDING") return false;
+      if (!matchesQueueTab(lodge, activeTab)) return false;
       if (!normalized) return true;
-      return [lodge.name, lodge.location, lodge.lodgeType].join(" ").toLowerCase().includes(normalized);
+      return [lodge.name, lodge.location, lodge.lodgeType, lodge.ownerName ?? "", lodge.paymentReference ?? ""].join(" ").toLowerCase().includes(normalized);
     });
-  }, [lodges, paymentFilter, query, status]);
+  }, [activeTab, lodges, query]);
+
+  const emptyState = getEmptyState(activeTab);
 
   async function load() {
     setIsLoading(true);
@@ -83,17 +96,41 @@ export function AdminLodges() {
       </div>
       {message ? <p className="mb-5 rounded-lg bg-eclipse-gold/15 px-4 py-3 text-sm text-eclipse-ink">{message}</p> : null}
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
-        <div className="grid gap-3 md:grid-cols-[1fr_220px_240px]">
+        <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+          {queueTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                activeTab === tab.id ? "bg-eclipse-blue text-white" : "bg-eclipse-mist text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {tab.label}
+              <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === tab.id ? "bg-white/20 text-white" : "bg-white text-slate-600"}`}>{tabCounts[tab.id] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <input value={query} onChange={(event) => setQuery(event.target.value)} className="input" placeholder="Search by name or location" />
-          <select value={status} onChange={(event) => setStatus(event.target.value as LodgeStatus | "ALL")} className="input">
-            {statuses.map((item) => <option key={item} value={item}>{item === "ALL" ? "All statuses" : item}</option>)}
-          </select>
-          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as (typeof paymentFilters)[number])} className="input">
-            {paymentFilters.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}
-          </select>
+          <Link href="/admin/lodges/new" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 px-4 py-2 text-sm font-semibold text-eclipse-blue">
+            <Plus className="h-4 w-4" /> Add Lodge
+          </Link>
         </div>
         <div className="mt-5 grid gap-4">
-          {filtered.map((lodge) => (
+          {filtered.map((lodge) => {
+            const isFullActiveListing = isFullyActivePaid(lodge);
+            const isExpiredListing = isExpired(lodge);
+            const hasPopReceived = lodge.proofOfPaymentStatus === "RECEIVED";
+            const isPendingPayment = lodge.subscriptionStatus === "PENDING_PAYMENT";
+            const canVerifyAndActivate = hasPopReceived || lodge.subscriptionStatus === "EXPIRED" || isExpiredListing;
+            const canMarkPopReceived = isPendingPayment && lodge.proofOfPaymentStatus !== "RECEIVED";
+            const canRenew = isFullActiveListing || isExpiredListing || lodge.subscriptionStatus === "EXPIRED";
+            const canExpire = isFullActiveListing;
+            const canFeature = isFullActiveListing;
+            const canApprove = lodge.status !== "ACTIVE" && lodge.proofOfPaymentStatus === "VERIFIED" && lodge.subscriptionStatus === "ACTIVE";
+
+            return (
             <article key={lodge.id} className="rounded-lg border border-slate-200 p-4">
               <div className="grid gap-4 lg:grid-cols-[140px_1fr_auto]">
                 <img src={lodge.images[0]?.imageUrl ?? "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80"} alt={lodge.name} className="aspect-[4/3] w-full rounded-lg object-cover" />
@@ -113,28 +150,96 @@ export function AdminLodges() {
                   <p className="mt-1 text-xs text-slate-500">Views {lodge.views} / WhatsApp clicks {lodge.whatsappClicks}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:justify-end">
-                  <button onClick={() => patch(lodge.id, { action: "pop-received" }, "POP marked received.")} className="action-button">Mark POP Received</button>
-                  <button onClick={() => patch(lodge.id, { action: "verify-activate" }, "Payment verified and lodge activated for 1 year.")} className="action-button bg-eclipse-gold/10">Verify Payment & Activate 1 Year</button>
-                  <button onClick={() => patch(lodge.id, { action: "renew-year" }, "Subscription renewed for 1 year.")} className="action-button">Renew for 1 Year</button>
-                  <button onClick={() => patch(lodge.id, { action: "expire-subscription" }, "Subscription marked expired.")} className="action-button">Mark Subscription Expired</button>
-                  <button onClick={() => patch(lodge.id, { action: "status", status: "ACTIVE" }, "Lodge approved.")} className="action-button"><CheckCircle2 className="h-4 w-4" />Approve</button>
-                  <button onClick={() => patch(lodge.id, { action: "status", status: "REJECTED" }, "Lodge rejected.")} className="action-button"><XCircle className="h-4 w-4" />Reject</button>
-                  <button onClick={() => patch(lodge.id, { action: "status", status: "ARCHIVED" }, "Lodge archived.")} className="action-button">Archive</button>
-                  <button onClick={() => patch(lodge.id, { action: "featured", isFeatured: !lodge.isFeatured }, lodge.isFeatured ? "Featured removed." : "Lodge featured.")} className="action-button"><Star className="h-4 w-4" />{lodge.isFeatured ? "Unfeature" : "Feature"}</button>
+                  {canMarkPopReceived ? <button onClick={() => patch(lodge.id, { action: "pop-received" }, `${lodge.name} POP marked as received.`)} className="action-button">Mark POP Received</button> : null}
+                  {canVerifyAndActivate ? <button onClick={() => patch(lodge.id, { action: "verify-activate" }, `${lodge.name} activated for 1 year.`)} className="action-button bg-eclipse-gold text-eclipse-blue hover:bg-eclipse-gold/90">Verify Payment & Activate 1 Year</button> : null}
+                  {canRenew ? <button onClick={() => patch(lodge.id, { action: "renew-year" }, `${lodge.name} subscription renewed for 1 year.`)} className="action-button">Renew for 1 Year</button> : null}
+                  {canExpire ? <button onClick={() => patch(lodge.id, { action: "expire-subscription" }, `${lodge.name} subscription marked expired.`)} className="action-button">Mark Subscription Expired</button> : null}
+                  {canApprove ? <button onClick={() => patch(lodge.id, { action: "status", status: "ACTIVE" }, `${lodge.name} approved.`)} className="action-button"><CheckCircle2 className="h-4 w-4" />Approve</button> : null}
+                  {lodge.status !== "REJECTED" && lodge.status !== "ARCHIVED" && !isFullActiveListing ? <button onClick={() => patch(lodge.id, { action: "status", status: "REJECTED" }, `${lodge.name} rejected.`)} className="action-button"><XCircle className="h-4 w-4" />Reject</button> : null}
+                  {lodge.status !== "ARCHIVED" ? <button onClick={() => patch(lodge.id, { action: "status", status: "ARCHIVED" }, `${lodge.name} archived.`)} className="action-button">Archive</button> : null}
+                  {canFeature ? <button onClick={() => patch(lodge.id, { action: "featured", isFeatured: !lodge.isFeatured }, lodge.isFeatured ? `${lodge.name} removed from featured listings.` : `${lodge.name} marked as featured.`)} className="action-button"><Star className="h-4 w-4" />{lodge.isFeatured ? "Unfeature" : "Feature"}</button> : null}
                   <Link href={`/admin/lodges/${lodge.id}/edit`} className="action-button"><Edit3 className="h-4 w-4" />Edit</Link>
                   <button onClick={() => remove(lodge.id)} className="action-button text-rose-600"><Trash2 className="h-4 w-4" />Delete</button>
                 </div>
               </div>
             </article>
-          ))}
-          {filtered.length === 0 ? <p className="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-600">No lodge listings match this view.</p> : null}
+          );
+          })}
+          {filtered.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
+              <h2 className="text-lg font-bold text-eclipse-ink">{emptyState.title}</h2>
+              <p className="mt-2 text-sm text-slate-600">{emptyState.message}</p>
+            </div>
+          ) : null}
         </div>
       </section>
     </div>
   );
 }
 
+function matchesQueueTab(lodge: LodgeRecord, tab: QueueTab) {
+  if (tab === "ALL") return true;
+  if (tab === "ARCHIVED") return lodge.status === "ARCHIVED";
+  if (lodge.status === "ARCHIVED") return false;
+  if (tab === "ACTION_NEEDED") return needsAdminAction(lodge);
+  if (tab === "PENDING_PAYMENT") return lodge.subscriptionStatus === "PENDING_PAYMENT";
+  if (tab === "POP_RECEIVED") return lodge.proofOfPaymentStatus === "RECEIVED";
+  if (tab === "ACTIVE") return isFullyActivePaid(lodge);
+  if (tab === "EXPIRING_SOON") return isExpiringSoon(lodge.subscriptionExpiresAt);
+  if (tab === "EXPIRED") return isExpired(lodge) || lodge.subscriptionStatus === "EXPIRED";
+  return false;
+}
+
+function needsAdminAction(lodge: LodgeRecord) {
+  if (lodge.status === "ARCHIVED") return false;
+  return lodge.status === "PENDING" ||
+    lodge.subscriptionStatus === "PENDING_PAYMENT" ||
+    lodge.proofOfPaymentStatus === "RECEIVED" ||
+    lodge.subscriptionStatus === "EXPIRED" ||
+    isExpired(lodge) ||
+    isExpiringSoon(lodge.subscriptionExpiresAt);
+}
+
+function isFullyActivePaid(lodge: LodgeRecord) {
+  return lodge.status === "ACTIVE" &&
+    lodge.subscriptionStatus === "ACTIVE" &&
+    lodge.proofOfPaymentStatus === "VERIFIED" &&
+    Boolean(lodge.subscriptionExpiresAt) &&
+    !isExpired(lodge);
+}
+
+function isExpired(lodge: LodgeRecord) {
+  if (lodge.subscriptionStatus === "EXPIRED") return true;
+  if (!lodge.subscriptionExpiresAt) return false;
+  return new Date(lodge.subscriptionExpiresAt).getTime() < Date.now();
+}
+
+function isExpiringSoon(value?: string | Date | null) {
+  if (!value) return false;
+  const days = Number(daysRemaining(value));
+  return days >= 0 && days <= 30;
+}
+
 function daysRemaining(value?: string | Date | null) {
   if (!value) return "Not set";
   return Math.ceil((new Date(value).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
+function getEmptyState(tab: QueueTab) {
+  if (tab === "ACTION_NEEDED") {
+    return {
+      title: "No lodge actions needed.",
+      message: "All pending payments, approvals, and renewals are clear."
+    };
+  }
+  if (tab === "ACTIVE") {
+    return {
+      title: "No active lodge listings yet.",
+      message: "Approved and paid lodges will appear here."
+    };
+  }
+  return {
+    title: "No lodge listings found.",
+    message: "Try another workflow tab or clear the search field."
+  };
 }
