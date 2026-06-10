@@ -1,6 +1,7 @@
 import type { LodgeRecord } from "@/lib/types";
 
 const now = new Date().toISOString();
+const demoSubscriptionExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
 function image(id: string, lodgeId: string, imageUrl: string, altText: string, sortOrder = 0) {
   return { id, lodgeId, imageUrl, altText, sortOrder, createdAt: now };
@@ -24,6 +25,8 @@ export const fallbackLodges: LodgeRecord[] = [
     status: "ACTIVE",
     isFeatured: true,
     subscriptionStatus: "ACTIVE",
+    subscriptionExpiresAt: demoSubscriptionExpiresAt,
+    proofOfPaymentStatus: "VERIFIED",
     views: 0,
     whatsappClicks: 0,
     images: [
@@ -48,6 +51,8 @@ export const fallbackLodges: LodgeRecord[] = [
     status: "ACTIVE",
     isFeatured: true,
     subscriptionStatus: "ACTIVE",
+    subscriptionExpiresAt: demoSubscriptionExpiresAt,
+    proofOfPaymentStatus: "VERIFIED",
     views: 0,
     whatsappClicks: 0,
     images: [image("img-vicfalls-1", "seed-lodge-victoria-falls-family-guest-house", "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1200&q=80", "Guest house lounge")],
@@ -69,6 +74,8 @@ export const fallbackLodges: LodgeRecord[] = [
     status: "ACTIVE",
     isFeatured: false,
     subscriptionStatus: "ACTIVE",
+    subscriptionExpiresAt: demoSubscriptionExpiresAt,
+    proofOfPaymentStatus: "VERIFIED",
     views: 0,
     whatsappClicks: 0,
     images: [image("img-nyanga-1", "seed-lodge-nyanga-mist-cottages", "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=1200&q=80", "Mountain cottage")],
@@ -90,6 +97,8 @@ export const fallbackLodges: LodgeRecord[] = [
     status: "ACTIVE",
     isFeatured: false,
     subscriptionStatus: "ACTIVE",
+    subscriptionExpiresAt: demoSubscriptionExpiresAt,
+    proofOfPaymentStatus: "VERIFIED",
     views: 0,
     whatsappClicks: 0,
     images: [image("img-harare-1", "seed-lodge-harare-executive-guest-house", "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80", "Executive room")],
@@ -111,6 +120,8 @@ export const fallbackLodges: LodgeRecord[] = [
     status: "ACTIVE",
     isFeatured: false,
     subscriptionStatus: "ACTIVE",
+    subscriptionExpiresAt: demoSubscriptionExpiresAt,
+    proofOfPaymentStatus: "VERIFIED",
     views: 0,
     whatsappClicks: 0,
     images: [image("img-chivero-1", "seed-lodge-lake-chivero-weekend-lodge", "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=80", "Lakeside lodge")],

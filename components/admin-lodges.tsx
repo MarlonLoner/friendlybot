@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Edit3, Loader2, Plus, Star, Trash2, XCircle } from "lucide-react";
+import { Edit3, Loader2, Plus, Star, Trash2, XCircle } from "lucide-react";
 import { getStoredAdminCode } from "@/components/admin-auth-gate";
+import { getHiddenLodgeReason, hasPublicLodgeVisibility } from "@/lib/lodge-visibility";
 import { formatPrice } from "@/lib/lodge-options";
 import type { LodgeRecord } from "@/lib/types";
 
@@ -96,6 +97,9 @@ export function AdminLodges() {
       </div>
       {message ? <p className="mb-5 rounded-lg bg-eclipse-gold/15 px-4 py-3 text-sm text-eclipse-ink">{message}</p> : null}
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
+        <p className="mb-4 rounded-lg bg-eclipse-blue/5 px-4 py-3 text-sm font-medium text-eclipse-ink">
+          To make a lodge public, use Verify Payment & Activate 1 Year after confirming POP.
+        </p>
         <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
           {queueTabs.map((tab) => (
             <button
@@ -119,7 +123,7 @@ export function AdminLodges() {
         </div>
         <div className="mt-5 grid gap-4">
           {filtered.map((lodge) => {
-            const isFullActiveListing = isFullyActivePaid(lodge);
+            const isFullActiveListing = hasPublicLodgeVisibility(lodge);
             const isExpiredListing = isExpired(lodge);
             const hasPopReceived = lodge.proofOfPaymentStatus === "RECEIVED";
             const isPendingPayment = lodge.subscriptionStatus === "PENDING_PAYMENT";
@@ -127,8 +131,9 @@ export function AdminLodges() {
             const canMarkPopReceived = isPendingPayment && lodge.proofOfPaymentStatus !== "RECEIVED";
             const canRenew = isFullActiveListing || isExpiredListing || lodge.subscriptionStatus === "EXPIRED";
             const canExpire = isFullActiveListing;
-            const canFeature = isFullActiveListing;
-            const canApprove = lodge.status !== "ACTIVE" && lodge.proofOfPaymentStatus === "VERIFIED" && lodge.subscriptionStatus === "ACTIVE";
+            const canFeature = lodge.status !== "ARCHIVED";
+            const visibilityLabel = isFullActiveListing ? "Public: Live" : "Public: Hidden";
+            const hiddenReason = isFullActiveListing ? null : getHiddenLodgeReason(lodge);
 
             return (
             <article key={lodge.id} className="rounded-lg border border-slate-200 p-4">
@@ -137,11 +142,14 @@ export function AdminLodges() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg font-semibold text-eclipse-ink">{lodge.name}</h2>
+                    <span className={`rounded-md px-2 py-1 text-xs font-semibold ${isFullActiveListing ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" : "bg-rose-50 text-rose-700 ring-1 ring-rose-100"}`}>{visibilityLabel}</span>
                     <span className="rounded-md bg-eclipse-mist px-2 py-1 text-xs font-semibold text-slate-600">{lodge.status}</span>
                     {lodge.isFeatured ? <span className="rounded-md bg-eclipse-gold/20 px-2 py-1 text-xs font-semibold text-eclipse-blue">Featured</span> : null}
                     <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{lodge.subscriptionStatus}</span>
                     <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">POP {lodge.proofOfPaymentStatus ?? "NOT_RECEIVED"}</span>
                   </div>
+                  {hiddenReason ? <p className="mt-2 text-xs font-semibold text-rose-700">{hiddenReason}</p> : null}
+                  {!isFullActiveListing && lodge.isFeatured ? <p className="mt-1 text-xs text-slate-500">Featured status will apply after the listing is activated.</p> : null}
                   <p className="mt-2 text-sm text-slate-600">{lodge.location} / {lodge.lodgeType} / From {formatPrice(lodge.priceFrom)}</p>
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{lodge.description}</p>
                   <p className="mt-2 text-xs text-slate-500">
@@ -154,10 +162,9 @@ export function AdminLodges() {
                   {canVerifyAndActivate ? <button onClick={() => patch(lodge.id, { action: "verify-activate" }, `${lodge.name} activated for 1 year.`)} className="action-button bg-eclipse-gold text-eclipse-blue hover:bg-eclipse-gold/90">Verify Payment & Activate 1 Year</button> : null}
                   {canRenew ? <button onClick={() => patch(lodge.id, { action: "renew-year" }, `${lodge.name} subscription renewed for 1 year.`)} className="action-button">Renew for 1 Year</button> : null}
                   {canExpire ? <button onClick={() => patch(lodge.id, { action: "expire-subscription" }, `${lodge.name} subscription marked expired.`)} className="action-button">Mark Subscription Expired</button> : null}
-                  {canApprove ? <button onClick={() => patch(lodge.id, { action: "status", status: "ACTIVE" }, `${lodge.name} approved.`)} className="action-button"><CheckCircle2 className="h-4 w-4" />Approve</button> : null}
                   {lodge.status !== "REJECTED" && lodge.status !== "ARCHIVED" && !isFullActiveListing ? <button onClick={() => patch(lodge.id, { action: "status", status: "REJECTED" }, `${lodge.name} rejected.`)} className="action-button"><XCircle className="h-4 w-4" />Reject</button> : null}
                   {lodge.status !== "ARCHIVED" ? <button onClick={() => patch(lodge.id, { action: "status", status: "ARCHIVED" }, `${lodge.name} archived.`)} className="action-button">Archive</button> : null}
-                  {canFeature ? <button onClick={() => patch(lodge.id, { action: "featured", isFeatured: !lodge.isFeatured }, lodge.isFeatured ? `${lodge.name} removed from featured listings.` : `${lodge.name} marked as featured.`)} className="action-button"><Star className="h-4 w-4" />{lodge.isFeatured ? "Unfeature" : "Feature"}</button> : null}
+                  {canFeature ? <button onClick={() => patch(lodge.id, { action: "featured", isFeatured: !lodge.isFeatured }, lodge.isFeatured ? `${lodge.name} removed from featured listings.` : isFullActiveListing ? `${lodge.name} marked as featured.` : `${lodge.name} marked as featured. Featured status will apply after the listing is activated.`)} className="action-button"><Star className="h-4 w-4" />{lodge.isFeatured ? "Unfeature" : "Feature"}</button> : null}
                   <Link href={`/admin/lodges/${lodge.id}/edit`} className="action-button"><Edit3 className="h-4 w-4" />Edit</Link>
                   <button onClick={() => remove(lodge.id)} className="action-button text-rose-600"><Trash2 className="h-4 w-4" />Delete</button>
                 </div>
@@ -201,11 +208,7 @@ function needsAdminAction(lodge: LodgeRecord) {
 }
 
 function isFullyActivePaid(lodge: LodgeRecord) {
-  return lodge.status === "ACTIVE" &&
-    lodge.subscriptionStatus === "ACTIVE" &&
-    lodge.proofOfPaymentStatus === "VERIFIED" &&
-    Boolean(lodge.subscriptionExpiresAt) &&
-    !isExpired(lodge);
+  return hasPublicLodgeVisibility(lodge);
 }
 
 function isExpired(lodge: LodgeRecord) {

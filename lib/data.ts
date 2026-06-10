@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { fallbackCategories, fallbackGroupRequests, fallbackGroups } from "@/lib/fallback-data";
 import { fallbackLodges } from "@/lib/fallback-lodges";
+import { hasPublicLodgeVisibility } from "@/lib/lodge-visibility";
 import { hasDatabaseUrl, prisma } from "@/lib/prisma";
 import { detectCategory, detectLocation, searchGroups, slugify } from "@/lib/search";
 import type {
@@ -44,12 +45,6 @@ const lodgeInclude = {
     }
   }
 } satisfies Prisma.LodgeInclude;
-
-function hasActiveLodgeSubscription(lodge: Pick<LodgeRecord, "subscriptionStatus" | "subscriptionExpiresAt">) {
-  if (lodge.subscriptionStatus !== "ACTIVE") return false;
-  if (!lodge.subscriptionExpiresAt) return true;
-  return new Date(lodge.subscriptionExpiresAt).getTime() > Date.now();
-}
 
 function databaseReady() {
   return hasDatabaseUrl();
@@ -603,7 +598,7 @@ function filterLodges(lodges: LodgeRecord[], filters: LodgeFilters = {}) {
   return lodges
     .filter((lodge) => filters.includeArchived || lodge.status !== "ARCHIVED")
     .filter((lodge) => (status ? lodge.status === status : filters.includeArchived ? true : lodge.status === "ACTIVE"))
-    .filter((lodge) => filters.includeArchived || hasActiveLodgeSubscription(lodge))
+    .filter((lodge) => filters.includeArchived || hasPublicLodgeVisibility(lodge))
     .filter((lodge) => {
       if (query && ![lodge.name, lodge.location, lodge.description, lodge.lodgeType].join(" ").toLowerCase().includes(query)) return false;
       if (location && !lodge.location.toLowerCase().includes(location)) return false;
@@ -625,9 +620,12 @@ export async function getLodges(filters: LodgeFilters = {}): Promise<LodgeRecord
       const where: Prisma.LodgeWhereInput = {};
       if (filters.status && filters.status !== "ALL") where.status = filters.status;
       else if (!filters.includeArchived) {
-        where.status = "ACTIVE";
-        where.subscriptionStatus = "ACTIVE";
-        where.OR = [{ subscriptionExpiresAt: null }, { subscriptionExpiresAt: { gt: new Date() } }];
+        where.AND = [
+          { status: "ACTIVE" },
+          { subscriptionStatus: "ACTIVE" },
+          { proofOfPaymentStatus: "VERIFIED" },
+          { subscriptionExpiresAt: { gt: new Date() } }
+        ];
       }
       if (filters.location) where.location = { contains: filters.location, mode: "insensitive" };
       if (filters.lodgeType) where.lodgeType = { equals: filters.lodgeType, mode: "insensitive" };
@@ -657,11 +655,12 @@ export async function getLodgeBySlug(slug: string) {
           slug,
           status: "ACTIVE",
           subscriptionStatus: "ACTIVE",
-          OR: [{ subscriptionExpiresAt: null }, { subscriptionExpiresAt: { gt: new Date() } }]
+          proofOfPaymentStatus: "VERIFIED",
+          subscriptionExpiresAt: { gt: new Date() }
         },
         include: lodgeInclude
       }),
-    fallbackLodges.find((lodge) => lodge.slug === slug && lodge.status === "ACTIVE" && hasActiveLodgeSubscription(lodge)) ?? null
+    fallbackLodges.find((lodge) => lodge.slug === slug && hasPublicLodgeVisibility(lodge)) ?? null
   );
 }
 
