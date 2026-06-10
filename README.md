@@ -147,6 +147,31 @@ Expired or unpaid lodges are hidden from public lodge discovery. Admins can rene
 
 Paynow/payment integration is planned for a later phase.
 
+## Image Uploads
+
+Lodge photos use Vercel Blob for file storage. Image URL entry still works as a manual fallback.
+
+Required environment variable:
+
+```env
+BLOB_READ_WRITE_TOKEN=""
+```
+
+Setup:
+
+1. Create a Vercel Blob store in your Vercel project.
+2. Copy the read/write token into local `.env` and Vercel environment variables.
+3. Restart the local dev server after changing `.env`.
+
+Upload limits:
+
+- Accepted formats: JPG, PNG, WebP
+- Maximum size: 5MB per image
+- Public lodge submissions: up to 8 images
+- Admin lodge create/edit: up to 12 images
+
+Uploaded images are saved as public Blob URLs in `LodgeImage.imageUrl`, with the first image used as the lodge card hero image.
+
 ## Scripts
 
 ```bash

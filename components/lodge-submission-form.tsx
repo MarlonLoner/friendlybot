@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { CheckCircle2, Loader2, Send } from "lucide-react";
+import { ImageUploadPicker, type SelectedImage } from "@/components/image-upload-picker";
 import { lodgeFacilities, lodgeTypes } from "@/lib/lodge-options";
 import { PaymentInstructions } from "@/components/payment-instructions";
 
@@ -41,6 +42,8 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
     proofOfPaymentStatus: "NOT_RECEIVED"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,23 +54,54 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
     }));
   }
 
+  async function uploadSelectedImages() {
+    if (selectedImages.length === 0) return [];
+    setUploadingImages(true);
+    const formData = new FormData();
+    formData.append("lodgeName", form.name || "lodge-submission");
+    selectedImages.forEach((image) => formData.append("files", image.file));
+
+    const response = await fetch("/api/uploads/lodge-images", {
+      method: "POST",
+      body: formData
+    });
+    const data = await response.json().catch(() => ({}));
+    setUploadingImages(false);
+
+    if (!response.ok) {
+      throw new Error(data.error ?? "Could not upload lodge images.");
+    }
+
+    return (data.images ?? []).map((image: { url: string }) => image.url).filter(Boolean);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
     setMessage(null);
-    const response = await fetch(admin ? "/api/admin/lodges" : "/api/lodges", {
-      method: "POST",
-      headers: admin ? { "Content-Type": "application/json", "x-admin-access-code": localStorage.getItem("eclipse_friendlybot_admin_code") ?? "" } : { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, priceFrom: Number(form.priceFrom) })
-    });
-    const data = await response.json().catch(() => ({}));
-    setIsSubmitting(false);
-    if (!response.ok) {
-      setError(data.error ?? "Could not save this lodge listing.");
-      return;
+    try {
+      const uploadedImageUrls = await uploadSelectedImages();
+      const manualUrls = form.images
+        .split(/\r?\n/)
+        .map((url) => url.trim())
+        .filter(Boolean);
+      const response = await fetch(admin ? "/api/admin/lodges" : "/api/lodges", {
+        method: "POST",
+        headers: admin ? { "Content-Type": "application/json", "x-admin-access-code": localStorage.getItem("eclipse_friendlybot_admin_code") ?? "" } : { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, images: [...uploadedImageUrls, ...manualUrls], priceFrom: Number(form.priceFrom) })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error ?? "Could not save this lodge listing.");
+      }
+      setMessage(admin ? "Lodge listing created." : "Lodge submitted. Complete payment to go live.");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Could not save this lodge listing.");
+    } finally {
+      setUploadingImages(false);
+      setIsSubmitting(false);
     }
-    setMessage(admin ? "Lodge listing created." : "Lodge submitted. Complete payment to go live.");
   }
 
   if (message) {
@@ -117,7 +151,16 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
         </div>
       </div>
       <label className="block text-sm font-semibold text-eclipse-ink md:col-span-2">Description<textarea required rows={5} className="input mt-2 min-h-32 py-3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-      <label className="block text-sm font-semibold text-eclipse-ink md:col-span-2">Image URLs<textarea rows={4} className="input mt-2 min-h-28 py-3" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} placeholder="One image URL per line" /></label>
+      <div className="md:col-span-2">
+        <ImageUploadPicker images={selectedImages} onChange={setSelectedImages} maxImages={admin ? 12 : 8} />
+      </div>
+      <details className="rounded-lg border border-slate-200 bg-white p-4 md:col-span-2">
+        <summary className="cursor-pointer text-sm font-semibold text-eclipse-ink">Optional image URLs</summary>
+        <label className="mt-3 block text-sm font-semibold text-eclipse-ink">
+          Manual image URLs
+          <textarea rows={4} className="input mt-2 min-h-28 py-3" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} placeholder="One image URL per line" />
+        </label>
+      </details>
       <label className="block text-sm font-semibold text-eclipse-ink md:col-span-2">Notes for admin optional<textarea rows={3} className="input mt-2 min-h-24 py-3" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
       {admin ? (
         <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
@@ -130,7 +173,7 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
       {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 md:col-span-2">{error}</p> : null}
       <button disabled={isSubmitting} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-eclipse-gold px-4 text-sm font-semibold text-eclipse-blue transition hover:bg-[#e8b957] disabled:opacity-60 md:col-span-2 md:w-fit">
         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        {admin ? "Create Lodge" : "Submit Lodge"}
+        {uploadingImages ? "Uploading images..." : admin ? "Create Lodge" : "Submit Lodge"}
       </button>
     </form>
   );
