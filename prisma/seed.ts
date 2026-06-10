@@ -227,7 +227,7 @@ const lodges = [
     description: "A warm lake-facing lodge for family holidays, fishing weekends and relaxed Kariba getaways.",
     status: LodgeStatus.ACTIVE,
     isFeatured: true,
-    subscriptionStatus: SubscriptionStatus.TRIAL,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
     images: [
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
@@ -262,7 +262,7 @@ const lodges = [
     description: "Quiet mountain cottages for weekend retreats, family stays and misty Nyanga escapes.",
     status: LodgeStatus.ACTIVE,
     isFeatured: false,
-    subscriptionStatus: SubscriptionStatus.TRIAL,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
     images: ["https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=1200&q=80"]
   },
   {
@@ -294,7 +294,7 @@ const lodges = [
     description: "A simple weekend lodge for quick escapes, group braais and lakeside relaxation near Harare.",
     status: LodgeStatus.ACTIVE,
     isFeatured: false,
-    subscriptionStatus: SubscriptionStatus.NONE,
+    subscriptionStatus: SubscriptionStatus.ACTIVE,
     images: ["https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=80"]
   }
 ];
@@ -383,7 +383,13 @@ async function main() {
         description: lodge.description,
         status: lodge.status,
         isFeatured: lodge.isFeatured,
-        subscriptionStatus: lodge.subscriptionStatus
+        subscriptionStatus: lodge.subscriptionStatus,
+        proofOfPaymentStatus: "VERIFIED",
+        subscriptionPlan: "ANNUAL_10",
+        subscriptionAmount: 10,
+        subscriptionCurrency: "USD",
+        paymentVerifiedAt: new Date(),
+        paymentVerifiedBy: "Seed"
       },
       create: {
         name: lodge.name,
@@ -401,6 +407,12 @@ async function main() {
         status: lodge.status,
         isFeatured: lodge.isFeatured,
         subscriptionStatus: lodge.subscriptionStatus,
+        proofOfPaymentStatus: "VERIFIED",
+        subscriptionPlan: "ANNUAL_10",
+        subscriptionAmount: 10,
+        subscriptionCurrency: "USD",
+        paymentVerifiedAt: new Date(),
+        paymentVerifiedBy: "Seed",
         images: {
           create: lodge.images.map((imageUrl, index) => ({
             imageUrl,

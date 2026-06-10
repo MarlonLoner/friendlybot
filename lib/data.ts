@@ -12,6 +12,8 @@ import type {
   LodgeFilters,
   LodgeRecord,
   LodgeStatus,
+  PaymentMethod,
+  ProofOfPaymentStatus,
   SubscriptionStatus,
   SearchFilters,
   SearchLogRecord,
@@ -42,6 +44,12 @@ const lodgeInclude = {
     }
   }
 } satisfies Prisma.LodgeInclude;
+
+function hasActiveLodgeSubscription(lodge: Pick<LodgeRecord, "subscriptionStatus" | "subscriptionExpiresAt">) {
+  if (lodge.subscriptionStatus !== "ACTIVE") return false;
+  if (!lodge.subscriptionExpiresAt) return true;
+  return new Date(lodge.subscriptionExpiresAt).getTime() > Date.now();
+}
 
 function databaseReady() {
   return hasDatabaseUrl();
@@ -233,7 +241,12 @@ export async function getAdminStats() {
         featuredLodges,
         expiredSubscriptions,
         lodgeWhatsappClicks,
-        mostViewedLodges
+        mostViewedLodges,
+        pendingLodgePayments,
+        popReceivedAwaitingVerification,
+        activeLodgeSubscriptions,
+        expiringLodgeSubscriptions,
+        lodgeSubscriptionValueEstimate
       ] = await Promise.all([
         prisma.whatsAppGroup.count({ where: { status: { not: "ARCHIVED" } } }),
         prisma.category.count(),
@@ -252,7 +265,20 @@ export async function getAdminStats() {
         prisma.lodge.count({ where: { status: "ACTIVE", isFeatured: true } }),
         prisma.lodge.count({ where: { subscriptionStatus: "EXPIRED" } }),
         prisma.lodge.aggregate({ _sum: { whatsappClicks: true } }),
-        prisma.lodge.findMany({ where: { status: "ACTIVE" }, include: lodgeInclude, orderBy: { views: "desc" }, take: 5 })
+        prisma.lodge.findMany({ where: { status: "ACTIVE" }, include: lodgeInclude, orderBy: { views: "desc" }, take: 5 }),
+        prisma.lodge.count({ where: { subscriptionStatus: "PENDING_PAYMENT" } }),
+        prisma.lodge.count({ where: { proofOfPaymentStatus: "RECEIVED", subscriptionStatus: { not: "ACTIVE" } } }),
+        prisma.lodge.count({ where: { subscriptionStatus: "ACTIVE" } }),
+        prisma.lodge.count({
+          where: {
+            subscriptionStatus: "ACTIVE",
+            subscriptionExpiresAt: {
+              gte: new Date(),
+              lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            }
+          }
+        }),
+        prisma.lodge.count({ where: { subscriptionStatus: "ACTIVE" } })
       ]);
 
       return {
@@ -273,7 +299,12 @@ export async function getAdminStats() {
         featuredLodges,
         expiredSubscriptions,
         lodgeWhatsappClicks: lodgeWhatsappClicks._sum.whatsappClicks ?? 0,
-        mostViewedLodges
+        mostViewedLodges,
+        pendingLodgePayments,
+        popReceivedAwaitingVerification,
+        activeLodgeSubscriptions,
+        expiringLodgeSubscriptions,
+        lodgeSubscriptionValueEstimate: lodgeSubscriptionValueEstimate * 10
       };
     },
     {
@@ -294,7 +325,12 @@ export async function getAdminStats() {
       featuredLodges: fallbackLodges.filter((lodge) => lodge.status === "ACTIVE" && lodge.isFeatured).length,
       expiredSubscriptions: fallbackLodges.filter((lodge) => lodge.subscriptionStatus === "EXPIRED").length,
       lodgeWhatsappClicks: fallbackLodges.reduce((total, lodge) => total + lodge.whatsappClicks, 0),
-      mostViewedLodges: fallbackLodges.filter((lodge) => lodge.status === "ACTIVE").sort((a, b) => b.views - a.views).slice(0, 5)
+      mostViewedLodges: fallbackLodges.filter((lodge) => lodge.status === "ACTIVE").sort((a, b) => b.views - a.views).slice(0, 5),
+      pendingLodgePayments: fallbackLodges.filter((lodge) => lodge.subscriptionStatus === "PENDING_PAYMENT").length,
+      popReceivedAwaitingVerification: fallbackLodges.filter((lodge) => lodge.proofOfPaymentStatus === "RECEIVED" && lodge.subscriptionStatus !== "ACTIVE").length,
+      activeLodgeSubscriptions: fallbackLodges.filter((lodge) => lodge.subscriptionStatus === "ACTIVE").length,
+      expiringLodgeSubscriptions: 0,
+      lodgeSubscriptionValueEstimate: fallbackLodges.filter((lodge) => lodge.subscriptionStatus === "ACTIVE").length * 10
     }
   );
 }
@@ -567,6 +603,7 @@ function filterLodges(lodges: LodgeRecord[], filters: LodgeFilters = {}) {
   return lodges
     .filter((lodge) => filters.includeArchived || lodge.status !== "ARCHIVED")
     .filter((lodge) => (status ? lodge.status === status : filters.includeArchived ? true : lodge.status === "ACTIVE"))
+    .filter((lodge) => filters.includeArchived || hasActiveLodgeSubscription(lodge))
     .filter((lodge) => {
       if (query && ![lodge.name, lodge.location, lodge.description, lodge.lodgeType].join(" ").toLowerCase().includes(query)) return false;
       if (location && !lodge.location.toLowerCase().includes(location)) return false;
@@ -587,7 +624,11 @@ export async function getLodges(filters: LodgeFilters = {}): Promise<LodgeRecord
     async () => {
       const where: Prisma.LodgeWhereInput = {};
       if (filters.status && filters.status !== "ALL") where.status = filters.status;
-      else if (!filters.includeArchived) where.status = "ACTIVE";
+      else if (!filters.includeArchived) {
+        where.status = "ACTIVE";
+        where.subscriptionStatus = "ACTIVE";
+        where.OR = [{ subscriptionExpiresAt: null }, { subscriptionExpiresAt: { gt: new Date() } }];
+      }
       if (filters.location) where.location = { contains: filters.location, mode: "insensitive" };
       if (filters.lodgeType) where.lodgeType = { equals: filters.lodgeType, mode: "insensitive" };
       if (filters.query) {
@@ -610,8 +651,17 @@ export async function getLodges(filters: LodgeFilters = {}): Promise<LodgeRecord
 
 export async function getLodgeBySlug(slug: string) {
   return withFallback<LodgeRecord | null>(
-    async () => prisma.lodge.findFirst({ where: { slug, status: "ACTIVE" }, include: lodgeInclude }),
-    fallbackLodges.find((lodge) => lodge.slug === slug && lodge.status === "ACTIVE") ?? null
+    async () =>
+      prisma.lodge.findFirst({
+        where: {
+          slug,
+          status: "ACTIVE",
+          subscriptionStatus: "ACTIVE",
+          OR: [{ subscriptionExpiresAt: null }, { subscriptionExpiresAt: { gt: new Date() } }]
+        },
+        include: lodgeInclude
+      }),
+    fallbackLodges.find((lodge) => lodge.slug === slug && lodge.status === "ACTIVE" && hasActiveLodgeSubscription(lodge)) ?? null
   );
 }
 
@@ -638,6 +688,14 @@ type LodgeInput = {
   isFeatured: boolean;
   subscriptionStatus: SubscriptionStatus;
   subscriptionExpiresAt?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  paymentReference?: string | null;
+  proofOfPaymentStatus?: ProofOfPaymentStatus;
+  paymentVerifiedAt?: string | null;
+  paymentVerifiedBy?: string | null;
+  subscriptionPlan?: string;
+  subscriptionAmount?: number;
+  subscriptionCurrency?: string;
   notes?: string | null;
   images: { imageUrl: string; altText?: string | null; sortOrder?: number }[];
 };
@@ -653,6 +711,7 @@ export async function createLodge(input: LodgeInput) {
       ...input,
       slug,
       subscriptionExpiresAt: input.subscriptionExpiresAt ? new Date(input.subscriptionExpiresAt) : null,
+      paymentVerifiedAt: input.paymentVerifiedAt ? new Date(input.paymentVerifiedAt) : null,
       images: { create: input.images.map((image, index) => ({ ...image, sortOrder: image.sortOrder ?? index })) }
     },
     include: lodgeInclude
@@ -668,6 +727,7 @@ export async function updateLodge(id: string, input: LodgeInput) {
       data: {
         ...input,
         subscriptionExpiresAt: input.subscriptionExpiresAt ? new Date(input.subscriptionExpiresAt) : null,
+        paymentVerifiedAt: input.paymentVerifiedAt ? new Date(input.paymentVerifiedAt) : null,
         images: { create: input.images.map((image, index) => ({ ...image, sortOrder: image.sortOrder ?? index })) }
       },
       include: lodgeInclude
@@ -678,6 +738,55 @@ export async function updateLodge(id: string, input: LodgeInput) {
 export async function updateLodgeStatus(id: string, status: LodgeStatus) {
   if (!databaseReady()) throw new Error("DATABASE_URL is required to update lodge listings.");
   return prisma.lodge.update({ where: { id }, data: { status }, include: lodgeInclude });
+}
+
+export async function markLodgePopReceived(id: string) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to update lodge payments.");
+  return prisma.lodge.update({ where: { id }, data: { proofOfPaymentStatus: "RECEIVED" }, include: lodgeInclude });
+}
+
+export async function verifyLodgePaymentAndActivate(id: string, verifiedBy = "Eclipse Admin") {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to verify lodge payments.");
+  return prisma.lodge.update({
+    where: { id },
+    data: {
+      status: "ACTIVE",
+      subscriptionStatus: "ACTIVE",
+      subscriptionExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      proofOfPaymentStatus: "VERIFIED",
+      paymentVerifiedAt: new Date(),
+      paymentVerifiedBy: verifiedBy,
+      subscriptionPlan: "ANNUAL_10",
+      subscriptionAmount: 10,
+      subscriptionCurrency: "USD"
+    },
+    include: lodgeInclude
+  });
+}
+
+export async function markLodgeSubscriptionExpired(id: string) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to update lodge subscriptions.");
+  return prisma.lodge.update({ where: { id }, data: { subscriptionStatus: "EXPIRED" }, include: lodgeInclude });
+}
+
+export async function renewLodgeForOneYear(id: string) {
+  if (!databaseReady()) throw new Error("DATABASE_URL is required to renew lodge subscriptions.");
+  const lodge = await prisma.lodge.findUnique({ where: { id } });
+  if (!lodge) throw new Error("Lodge not found.");
+  const base =
+    lodge.subscriptionExpiresAt && lodge.subscriptionExpiresAt.getTime() > Date.now() ? lodge.subscriptionExpiresAt.getTime() : Date.now();
+  return prisma.lodge.update({
+    where: { id },
+    data: {
+      status: "ACTIVE",
+      subscriptionStatus: "ACTIVE",
+      subscriptionExpiresAt: new Date(base + 365 * 24 * 60 * 60 * 1000),
+      proofOfPaymentStatus: "VERIFIED",
+      paymentVerifiedAt: new Date(),
+      paymentVerifiedBy: "Eclipse Admin"
+    },
+    include: lodgeInclude
+  });
 }
 
 export async function toggleLodgeFeatured(id: string, isFeatured: boolean) {

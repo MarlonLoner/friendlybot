@@ -8,10 +8,12 @@ import { formatPrice } from "@/lib/lodge-options";
 import type { LodgeRecord, LodgeStatus } from "@/lib/types";
 
 const statuses: (LodgeStatus | "ALL")[] = ["ALL", "PENDING", "ACTIVE", "REJECTED", "ARCHIVED"];
+const paymentFilters = ["ALL", "PENDING_PAYMENT", "POP_RECEIVED", "ACTIVE_SUBSCRIPTION", "EXPIRED_SUBSCRIPTION", "PENDING_APPROVAL"] as const;
 
 export function AdminLodges() {
   const [lodges, setLodges] = useState<LodgeRecord[]>([]);
   const [status, setStatus] = useState<LodgeStatus | "ALL">("ALL");
+  const [paymentFilter, setPaymentFilter] = useState<(typeof paymentFilters)[number]>("ALL");
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -20,10 +22,15 @@ export function AdminLodges() {
     const normalized = query.toLowerCase().trim();
     return lodges.filter((lodge) => {
       if (status !== "ALL" && lodge.status !== status) return false;
+      if (paymentFilter === "PENDING_PAYMENT" && lodge.subscriptionStatus !== "PENDING_PAYMENT") return false;
+      if (paymentFilter === "POP_RECEIVED" && lodge.proofOfPaymentStatus !== "RECEIVED") return false;
+      if (paymentFilter === "ACTIVE_SUBSCRIPTION" && lodge.subscriptionStatus !== "ACTIVE") return false;
+      if (paymentFilter === "EXPIRED_SUBSCRIPTION" && lodge.subscriptionStatus !== "EXPIRED") return false;
+      if (paymentFilter === "PENDING_APPROVAL" && lodge.status !== "PENDING") return false;
       if (!normalized) return true;
       return [lodge.name, lodge.location, lodge.lodgeType].join(" ").toLowerCase().includes(normalized);
     });
-  }, [lodges, query, status]);
+  }, [lodges, paymentFilter, query, status]);
 
   async function load() {
     setIsLoading(true);
@@ -76,10 +83,13 @@ export function AdminLodges() {
       </div>
       {message ? <p className="mb-5 rounded-lg bg-eclipse-gold/15 px-4 py-3 text-sm text-eclipse-ink">{message}</p> : null}
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
-        <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+        <div className="grid gap-3 md:grid-cols-[1fr_220px_240px]">
           <input value={query} onChange={(event) => setQuery(event.target.value)} className="input" placeholder="Search by name or location" />
           <select value={status} onChange={(event) => setStatus(event.target.value as LodgeStatus | "ALL")} className="input">
             {statuses.map((item) => <option key={item} value={item}>{item === "ALL" ? "All statuses" : item}</option>)}
+          </select>
+          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as (typeof paymentFilters)[number])} className="input">
+            {paymentFilters.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}
           </select>
         </div>
         <div className="mt-5 grid gap-4">
@@ -92,12 +102,21 @@ export function AdminLodges() {
                     <h2 className="text-lg font-semibold text-eclipse-ink">{lodge.name}</h2>
                     <span className="rounded-md bg-eclipse-mist px-2 py-1 text-xs font-semibold text-slate-600">{lodge.status}</span>
                     {lodge.isFeatured ? <span className="rounded-md bg-eclipse-gold/20 px-2 py-1 text-xs font-semibold text-eclipse-blue">Featured</span> : null}
+                    <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">{lodge.subscriptionStatus}</span>
+                    <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">POP {lodge.proofOfPaymentStatus ?? "NOT_RECEIVED"}</span>
                   </div>
                   <p className="mt-2 text-sm text-slate-600">{lodge.location} / {lodge.lodgeType} / From {formatPrice(lodge.priceFrom)}</p>
                   <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{lodge.description}</p>
-                  <p className="mt-2 text-xs text-slate-500">Views {lodge.views} / WhatsApp clicks {lodge.whatsappClicks} / Subscription {lodge.subscriptionStatus}</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Payment {lodge.paymentMethod ?? "Not selected"} / Ref {lodge.paymentReference || "None"} / Expiry {lodge.subscriptionExpiresAt ? new Date(lodge.subscriptionExpiresAt).toLocaleDateString() : "Not set"} / Days {daysRemaining(lodge.subscriptionExpiresAt)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Views {lodge.views} / WhatsApp clicks {lodge.whatsappClicks}</p>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:justify-end">
+                  <button onClick={() => patch(lodge.id, { action: "pop-received" }, "POP marked received.")} className="action-button">Mark POP Received</button>
+                  <button onClick={() => patch(lodge.id, { action: "verify-activate" }, "Payment verified and lodge activated for 1 year.")} className="action-button bg-eclipse-gold/10">Verify Payment & Activate 1 Year</button>
+                  <button onClick={() => patch(lodge.id, { action: "renew-year" }, "Subscription renewed for 1 year.")} className="action-button">Renew for 1 Year</button>
+                  <button onClick={() => patch(lodge.id, { action: "expire-subscription" }, "Subscription marked expired.")} className="action-button">Mark Subscription Expired</button>
                   <button onClick={() => patch(lodge.id, { action: "status", status: "ACTIVE" }, "Lodge approved.")} className="action-button"><CheckCircle2 className="h-4 w-4" />Approve</button>
                   <button onClick={() => patch(lodge.id, { action: "status", status: "REJECTED" }, "Lodge rejected.")} className="action-button"><XCircle className="h-4 w-4" />Reject</button>
                   <button onClick={() => patch(lodge.id, { action: "status", status: "ARCHIVED" }, "Lodge archived.")} className="action-button">Archive</button>
@@ -113,4 +132,9 @@ export function AdminLodges() {
       </section>
     </div>
   );
+}
+
+function daysRemaining(value?: string | Date | null) {
+  if (!value) return "Not set";
+  return Math.ceil((new Date(value).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 }

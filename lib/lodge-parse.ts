@@ -1,4 +1,4 @@
-import type { LodgeStatus, SubscriptionStatus } from "@/lib/types";
+import type { LodgeStatus, PaymentMethod, ProofOfPaymentStatus, SubscriptionStatus } from "@/lib/types";
 
 export function parseImageUrls(value: unknown) {
   if (Array.isArray(value)) {
@@ -12,7 +12,10 @@ export function parseImageUrls(value: unknown) {
     .map((imageUrl, index) => ({ imageUrl, altText: null, sortOrder: index }));
 }
 
-export function parseLodgePayload(body: Record<string, unknown>, defaults?: { status?: LodgeStatus; isFeatured?: boolean; subscriptionStatus?: SubscriptionStatus }) {
+export function parseLodgePayload(
+  body: Record<string, unknown>,
+  defaults?: { status?: LodgeStatus; isFeatured?: boolean; subscriptionStatus?: SubscriptionStatus; proofOfPaymentStatus?: ProofOfPaymentStatus }
+) {
   const name = String(body.name ?? "").trim();
   const whatsappNumber = String(body.whatsappNumber ?? "").trim();
   const location = String(body.location ?? "").trim();
@@ -42,6 +45,14 @@ export function parseLodgePayload(body: Record<string, unknown>, defaults?: { st
     isFeatured: typeof body.isFeatured === "boolean" ? body.isFeatured : defaults?.isFeatured ?? false,
     subscriptionStatus: (body.subscriptionStatus as SubscriptionStatus) ?? defaults?.subscriptionStatus ?? "NONE",
     subscriptionExpiresAt: body.subscriptionExpiresAt ? String(body.subscriptionExpiresAt) : null,
+    subscriptionPlan: String(body.subscriptionPlan ?? "ANNUAL_10"),
+    subscriptionAmount: Number(body.subscriptionAmount ?? 10),
+    subscriptionCurrency: String(body.subscriptionCurrency ?? "USD"),
+    paymentMethod: body.paymentMethod ? (String(body.paymentMethod) as PaymentMethod) : null,
+    paymentReference: body.paymentReference ? String(body.paymentReference).trim() : null,
+    proofOfPaymentStatus: (body.proofOfPaymentStatus as ProofOfPaymentStatus) ?? defaults?.proofOfPaymentStatus ?? "NOT_RECEIVED",
+    paymentVerifiedAt: body.paymentVerifiedAt ? String(body.paymentVerifiedAt) : null,
+    paymentVerifiedBy: body.paymentVerifiedBy ? String(body.paymentVerifiedBy).trim() : null,
     notes: body.notes ? String(body.notes).trim() : null,
     images: parseImageUrls(body.images)
   };

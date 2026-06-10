@@ -59,6 +59,14 @@ export function AdminLodgeEdit({ id }: { id: string }) {
         <h1 className="mt-2 text-3xl font-bold text-eclipse-ink">Edit {lodge.name}</h1>
       </div>
       {message ? <p className="mb-5 rounded-lg bg-eclipse-gold/15 px-4 py-3 text-sm text-eclipse-ink">{message}</p> : null}
+      {shouldShowRenewal(form.subscriptionExpiresAt, form.subscriptionStatus) ? (
+        <section className="mb-5 rounded-lg border border-eclipse-gold/40 bg-white p-5 shadow-soft">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-eclipse-gold">Renewal WhatsApp Helper</p>
+          <p className="mt-3 rounded-lg bg-eclipse-mist p-3 text-sm leading-6 text-slate-700">
+            {`Hi ${form.ownerName || "there"}, your Find Lodges by Eclipse listing for ${form.name} is due for renewal. The annual listing is USD $10. You can pay via EcoCash/InnBucks to 0772219228 or bank transfer to Eclipse Executive Selection (Pvt) Ltd. Please send POP to Sandra on +263772219228.`}
+          </p>
+        </section>
+      ) : null}
       <form onSubmit={save} className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-soft md:grid-cols-2">
         {[
           ["name", "Lodge name"],
@@ -78,8 +86,11 @@ export function AdminLodgeEdit({ id }: { id: string }) {
         ))}
         <label className="block text-sm font-semibold text-eclipse-ink">Lodge type<select className="input mt-2" value={form.lodgeType} onChange={(e) => setForm({ ...form, lodgeType: e.target.value })}>{lodgeTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
         <label className="block text-sm font-semibold text-eclipse-ink">Status<select className="input mt-2" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{["PENDING", "ACTIVE", "REJECTED", "ARCHIVED"].map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label className="block text-sm font-semibold text-eclipse-ink">Subscription<select className="input mt-2" value={form.subscriptionStatus} onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value })}>{["NONE", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="block text-sm font-semibold text-eclipse-ink">Subscription<select className="input mt-2" value={form.subscriptionStatus} onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value })}>{["NONE", "PENDING_PAYMENT", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}</select></label>
         <label className="block text-sm font-semibold text-eclipse-ink">Subscription expiry<input type="date" className="input mt-2" value={form.subscriptionExpiresAt ?? ""} onChange={(e) => setForm({ ...form, subscriptionExpiresAt: e.target.value })} /></label>
+        <label className="block text-sm font-semibold text-eclipse-ink">Payment method<select className="input mt-2" value={form.paymentMethod ?? ""} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>{["", "ECOCASH", "INNBUCKS", "BANK_TRANSFER", "WESTERN_UNION", "WORLD_REMIT", "MUKURU", "OTHER"].map((item) => <option key={item} value={item}>{item || "Not selected"}</option>)}</select></label>
+        <label className="block text-sm font-semibold text-eclipse-ink">Payment reference<input className="input mt-2" value={form.paymentReference ?? ""} onChange={(e) => setForm({ ...form, paymentReference: e.target.value })} /></label>
+        <label className="block text-sm font-semibold text-eclipse-ink">POP status<select className="input mt-2" value={form.proofOfPaymentStatus ?? "NOT_RECEIVED"} onChange={(e) => setForm({ ...form, proofOfPaymentStatus: e.target.value })}>{["NOT_RECEIVED", "RECEIVED", "VERIFIED", "REJECTED"].map((item) => <option key={item}>{item}</option>)}</select></label>
         <label className="flex items-center gap-2 text-sm font-semibold text-eclipse-ink md:col-span-2"><input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} /> Featured listing</label>
         <label className="block text-sm font-semibold text-eclipse-ink md:col-span-2">Room types<input className="input mt-2" value={form.roomTypes ?? ""} onChange={(e) => setForm({ ...form, roomTypes: e.target.value })} /></label>
         <div className="md:col-span-2"><p className="text-sm font-semibold text-eclipse-ink">Facilities</p><div className="mt-2 flex flex-wrap gap-2">{lodgeFacilities.map((facility) => <button key={facility} type="button" onClick={() => toggleFacility(facility)} className={`rounded-md px-3 py-2 text-sm font-semibold ${form.facilities.includes(facility) ? "bg-eclipse-blue text-white" : "bg-eclipse-mist text-slate-600"}`}>{facility}</button>)}</div></div>
@@ -93,4 +104,10 @@ export function AdminLodgeEdit({ id }: { id: string }) {
       </form>
     </div>
   );
+}
+
+function shouldShowRenewal(expiry?: string | null, status?: string) {
+  if (status === "EXPIRED") return true;
+  if (!expiry) return false;
+  return new Date(expiry).getTime() <= Date.now() + 30 * 24 * 60 * 60 * 1000;
 }

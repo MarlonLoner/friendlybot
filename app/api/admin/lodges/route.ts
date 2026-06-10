@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (!isAuthorizedAdminRequest(request)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const lodge = await createLodge(parseLodgePayload(body, { status: "ACTIVE" }));
+    const lodge = await createLodge(parseLodgePayload(body, { status: "ACTIVE", subscriptionStatus: "ACTIVE", proofOfPaymentStatus: "VERIFIED" }));
     return NextResponse.json({ lodge }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to create lodge." }, { status: 400 });

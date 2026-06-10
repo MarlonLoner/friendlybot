@@ -3,6 +3,17 @@
 import { FormEvent, useState } from "react";
 import { CheckCircle2, Loader2, Send } from "lucide-react";
 import { lodgeFacilities, lodgeTypes } from "@/lib/lodge-options";
+import { PaymentInstructions } from "@/components/payment-instructions";
+
+const paymentMethods = [
+  ["ECOCASH", "EcoCash"],
+  ["INNBUCKS", "InnBucks"],
+  ["BANK_TRANSFER", "Bank Transfer"],
+  ["WESTERN_UNION", "Western Union"],
+  ["WORLD_REMIT", "WorldRemit"],
+  ["MUKURU", "Mukuru"],
+  ["OTHER", "Other"]
+];
 
 export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }: { admin?: boolean; initialStatus?: string }) {
   const [form, setForm] = useState({
@@ -23,8 +34,11 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
     notes: "",
     status: initialStatus,
     isFeatured: false,
-    subscriptionStatus: "NONE",
-    subscriptionExpiresAt: ""
+    subscriptionStatus: admin ? "ACTIVE" : "PENDING_PAYMENT",
+    subscriptionExpiresAt: "",
+    paymentMethod: "ECOCASH",
+    paymentReference: "",
+    proofOfPaymentStatus: "NOT_RECEIVED"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -53,14 +67,22 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
       setError(data.error ?? "Could not save this lodge listing.");
       return;
     }
-    setMessage(admin ? "Lodge listing created." : "Your lodge has been submitted. The Eclipse team will review it before publishing.");
+    setMessage(admin ? "Lodge listing created." : "Lodge submitted. Complete payment to go live.");
   }
 
   if (message) {
     return (
-      <div className="rounded-lg border border-emerald-100 bg-white p-6 shadow-soft">
-        <CheckCircle2 className="h-8 w-8 text-emerald-700" aria-hidden="true" />
-        <p className="mt-3 font-semibold text-eclipse-ink">{message}</p>
+      <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+        <div className="rounded-lg border border-emerald-100 bg-white p-6 shadow-soft">
+          <CheckCircle2 className="h-8 w-8 text-emerald-700" aria-hidden="true" />
+          <h2 className="mt-3 text-2xl font-bold text-eclipse-ink">{message}</h2>
+          {!admin ? (
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Your listing has been sent to the Eclipse team. To activate it, pay USD $10 for the annual listing and send proof of payment to Sandra.
+            </p>
+          ) : null}
+        </div>
+        {!admin ? <PaymentInstructions /> : null}
       </div>
     );
   }
@@ -77,6 +99,12 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
       <Field label="Google Maps link optional"><input className="input" value={form.googleMapsUrl} onChange={(e) => setForm({ ...form, googleMapsUrl: e.target.value })} /></Field>
       <Field label="Starting price"><input required type="number" min="1" className="input" value={form.priceFrom} onChange={(e) => setForm({ ...form, priceFrom: e.target.value })} /></Field>
       <Field label="Lodge type"><select className="input" value={form.lodgeType} onChange={(e) => setForm({ ...form, lodgeType: e.target.value })}>{lodgeTypes.map((type) => <option key={type}>{type}</option>)}</select></Field>
+      <Field label="Payment method">
+        <select required className="input" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
+          {paymentMethods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </Field>
+      <Field label="Payment reference optional"><input className="input" value={form.paymentReference} onChange={(e) => setForm({ ...form, paymentReference: e.target.value })} /></Field>
       <label className="block text-sm font-semibold text-eclipse-ink md:col-span-2">Room types<input className="input mt-2" value={form.roomTypes} onChange={(e) => setForm({ ...form, roomTypes: e.target.value })} /></label>
       <div className="md:col-span-2">
         <p className="text-sm font-semibold text-eclipse-ink">Facilities</p>
@@ -94,8 +122,9 @@ export function LodgeSubmissionForm({ admin = false, initialStatus = "PENDING" }
       {admin ? (
         <div className="grid gap-4 md:col-span-2 md:grid-cols-3">
           <Field label="Status"><select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{["PENDING", "ACTIVE", "REJECTED", "ARCHIVED"].map((s) => <option key={s}>{s}</option>)}</select></Field>
-          <Field label="Subscription"><select className="input" value={form.subscriptionStatus} onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value })}>{["NONE", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"].map((s) => <option key={s}>{s}</option>)}</select></Field>
+          <Field label="Subscription"><select className="input" value={form.subscriptionStatus} onChange={(e) => setForm({ ...form, subscriptionStatus: e.target.value })}>{["NONE", "PENDING_PAYMENT", "TRIAL", "ACTIVE", "EXPIRED", "CANCELLED"].map((s) => <option key={s}>{s}</option>)}</select></Field>
           <Field label="Expiry date"><input type="date" className="input" value={form.subscriptionExpiresAt} onChange={(e) => setForm({ ...form, subscriptionExpiresAt: e.target.value })} /></Field>
+          <Field label="POP status"><select className="input" value={form.proofOfPaymentStatus} onChange={(e) => setForm({ ...form, proofOfPaymentStatus: e.target.value })}>{["NOT_RECEIVED", "RECEIVED", "VERIFIED", "REJECTED"].map((s) => <option key={s}>{s}</option>)}</select></Field>
         </div>
       ) : null}
       {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 md:col-span-2">{error}</p> : null}

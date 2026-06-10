@@ -30,10 +30,28 @@ enum LodgeStatus {
 
 enum SubscriptionStatus {
   NONE
+  PENDING_PAYMENT
   TRIAL
   ACTIVE
   EXPIRED
   CANCELLED
+}
+
+enum PaymentMethod {
+  ECOCASH
+  INNBUCKS
+  BANK_TRANSFER
+  WESTERN_UNION
+  WORLD_REMIT
+  MUKURU
+  OTHER
+}
+
+enum ProofOfPaymentStatus {
+  NOT_RECEIVED
+  RECEIVED
+  VERIFIED
+  REJECTED
 }
 
 model Category {
@@ -128,6 +146,14 @@ model Lodge {
   isFeatured            Boolean            @default(false)
   subscriptionStatus    SubscriptionStatus @default(NONE)
   subscriptionExpiresAt DateTime?
+  subscriptionPlan      String             @default("ANNUAL_10")
+  subscriptionAmount    Int                @default(10)
+  subscriptionCurrency  String             @default("USD")
+  paymentMethod         PaymentMethod?
+  paymentReference      String?
+  proofOfPaymentStatus  ProofOfPaymentStatus @default(NOT_RECEIVED)
+  paymentVerifiedAt     DateTime?
+  paymentVerifiedBy     String?
   notes                 String?
   views                 Int                @default(0)
   whatsappClicks        Int                @default(0)
@@ -141,6 +167,8 @@ model Lodge {
   @@index([lodgeType])
   @@index([isFeatured])
   @@index([subscriptionStatus])
+  @@index([proofOfPaymentStatus])
+  @@index([subscriptionExpiresAt])
 }
 
 model LodgeImage {

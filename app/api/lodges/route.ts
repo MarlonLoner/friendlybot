@@ -20,7 +20,9 @@ export async function POST(request: NextRequest) {
   if (!body) return NextResponse.json({ error: "A JSON request body is required." }, { status: 400 });
 
   try {
-    const lodge = await createLodge(parseLodgePayload(body, { status: "PENDING", isFeatured: false, subscriptionStatus: "NONE" }));
+    const lodge = await createLodge(
+      parseLodgePayload(body, { status: "PENDING", isFeatured: false, subscriptionStatus: "PENDING_PAYMENT", proofOfPaymentStatus: "NOT_RECEIVED" })
+    );
     return NextResponse.json({ lodge }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to submit lodge." }, { status: 400 });

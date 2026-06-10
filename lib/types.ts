@@ -1,7 +1,9 @@
 export type GroupStatus = "ACTIVE" | "ALMOST_FULL" | "FULL" | "ARCHIVED";
 export type GroupRequestStatus = "NEW" | "REVIEWED" | "CREATED" | "IGNORED";
 export type LodgeStatus = "PENDING" | "ACTIVE" | "REJECTED" | "ARCHIVED";
-export type SubscriptionStatus = "NONE" | "TRIAL" | "ACTIVE" | "EXPIRED" | "CANCELLED";
+export type SubscriptionStatus = "NONE" | "PENDING_PAYMENT" | "TRIAL" | "ACTIVE" | "EXPIRED" | "CANCELLED";
+export type PaymentMethod = "ECOCASH" | "INNBUCKS" | "BANK_TRANSFER" | "WESTERN_UNION" | "WORLD_REMIT" | "MUKURU" | "OTHER";
+export type ProofOfPaymentStatus = "NOT_RECEIVED" | "RECEIVED" | "VERIFIED" | "REJECTED";
 
 export type CategoryRecord = {
   id: string;
@@ -102,6 +104,14 @@ export type LodgeRecord = {
   isFeatured: boolean;
   subscriptionStatus: SubscriptionStatus;
   subscriptionExpiresAt?: Date | string | null;
+  subscriptionPlan?: string | null;
+  subscriptionAmount?: number;
+  subscriptionCurrency?: string;
+  paymentMethod?: PaymentMethod | null;
+  paymentReference?: string | null;
+  proofOfPaymentStatus?: ProofOfPaymentStatus;
+  paymentVerifiedAt?: Date | string | null;
+  paymentVerifiedBy?: string | null;
   notes?: string | null;
   views: number;
   whatsappClicks: number;

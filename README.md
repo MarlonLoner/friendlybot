@@ -115,6 +115,38 @@ Admin workflow:
 
 Paynow/payment integration planned for next phase.
 
+## Annual Lodge Listing Subscription
+
+Find Lodges now supports a manual-payment annual listing flow.
+
+Offer:
+
+- Plan: Find Lodges Annual Listing
+- Price: USD $10 per year
+- Benefits: 12-month listing, lodge profile with images/details, WhatsApp booking button, location/facility filters, and discovery from the Eclipse network
+
+Manual payment process:
+
+1. Lodge owner submits details at `/lodges/list-your-lodge`
+2. Listing is saved as `PENDING` with `PENDING_PAYMENT`
+3. Owner pays Sandra and sends proof of payment on WhatsApp
+4. Admin marks POP received in `/admin/lodges`
+5. Admin clicks “Verify Payment & Activate 1 Year”
+6. Listing becomes `ACTIVE`, subscription becomes `ACTIVE`, and expiry is set to one year from verification
+
+Payment methods:
+
+- EcoCash / InnBucks: 0772219228
+- POP WhatsApp: +263772219228
+- Western Union / WorldRemit / Mukuru: send to Sandra
+- Bank transfer: Eclipse Executive Selection (Pvt) Ltd
+- NMB ZiG Account: 0000021277959
+- NMB USD Account: 00000201400
+
+Expired or unpaid lodges are hidden from public lodge discovery. Admins can renew a listing for one year from `/admin/lodges` or use the renewal reminder helper on the edit page.
+
+Paynow/payment integration is planned for a later phase.
+
 ## Scripts
 
 ```bash

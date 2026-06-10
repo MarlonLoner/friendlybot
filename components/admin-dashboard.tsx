@@ -21,6 +21,11 @@ type Stats = {
   featuredLodges: number;
   expiredSubscriptions: number;
   lodgeWhatsappClicks: number;
+  pendingLodgePayments: number;
+  popReceivedAwaitingVerification: number;
+  activeLodgeSubscriptions: number;
+  expiringLodgeSubscriptions: number;
+  lodgeSubscriptionValueEstimate: number;
   mostViewedLodges: LodgeRecord[];
   demand: {
     topNoResultSearches: TopItem[];
@@ -44,6 +49,11 @@ const statConfig = [
   { key: "featuredLodges", label: "Featured lodges", icon: Star },
   { key: "expiredSubscriptions", label: "Expired subs", icon: AlertCircle },
   { key: "lodgeWhatsappClicks", label: "Lodge WhatsApp clicks", icon: MousePointerClick },
+  { key: "pendingLodgePayments", label: "Pending payments", icon: AlertCircle },
+  { key: "popReceivedAwaitingVerification", label: "POP to verify", icon: AlertCircle },
+  { key: "activeLodgeSubscriptions", label: "Active subs", icon: Star },
+  { key: "expiringLodgeSubscriptions", label: "Expiring 30 days", icon: TrendingUp },
+  { key: "lodgeSubscriptionValueEstimate", label: "Sub value USD", icon: MousePointerClick },
   { key: "almostFullGroups", label: "Almost full", icon: TrendingUp },
   { key: "fullGroups", label: "Full groups", icon: AlertCircle }
 ] satisfies { key: keyof Omit<Stats, "demand">; label: string; icon: typeof UsersRound }[];
